@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Usuario {
+  id                Int      @id @default(autoincrement())
+  nomeCompleto      String
+  email             String   @unique
+  senha             String
+  perfil            String   @default("Membro") // Membro, Líder, Pastor, Administrador
+  dataNascimento    DateTime?
+  exibirAniversario Boolean  @default(true)
+  estadoCivil       String?
+  fotoUrl           String?
+  profissao         String?
+
+  conteudos         Conteudo[]
+  cursosCriados      Curso[]        @relation("CriadorCurso")
+  historicoCursos    UsuarioCurso[]
+  participacoesSalas UsuarioSala[]
+  pedidosOracao     PedidoOracao[]
+  // leiturasDiarias   LeituraDiaria[]
+
+  @@map("usuarios")
+}
+
+model Conteudo {
+  id             Int       @id @default(autoincrement())
+  usuarioId      Int
+  tipo           String    // Estudo, Devocional, Aviso, Material, Apresentacao
+  titulo         String
+  texto          String?   // Texto principal (pode ser rich text)
+  imagemUrl      String?   // URL da imagem
+  videoUrl       String?   // URL do vídeo
+  formato        String    // texto, imagem, vídeo, combinacao
+  dataPublicacao DateTime  @default(now())
+  principal      Boolean   @default(false)
+  dataValidade   DateTime? // Usado para Avisos (opcional)
+
+  usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("conteudos")
+}
+
+model PedidoOracao {
+  id              Int      @id @default(autoincrement())
+  autorUsuarioId  Int
+  descricaoPedido String
+  dataEnvio       DateTime @default(now())
+  visibilidade    String   @default("todos")
+
+  autor           Usuario  @relation(fields: [autorUsuarioId], references: [id], onDelete: Cascade)
+
+  @@map("pedidos_oracao")
+}
+
+model Curso {
+  id                Int      @id @default(autoincrement())
+  criadorUsuarioId  Int
+  nome              String
+  descricaoMaterial String?
+  categoria         String   // "Homens", "Mulheres", "Casais", "Jovens", "Geral", etc.
+
+  criador           Usuario  @relation("CriadorCurso", fields: [criadorUsuarioId], references: [id])
+  salas             SalaCurso[]
+  historicoUsuarios UsuarioCurso[]
+
+  @@map("cursos")
+}
+
+model SalaCurso {
+  id         Int      @id @default(autoincrement())
+  cursoId    Int
+  nomeSala   String
+  dataInicio DateTime?
+  dataFim    DateTime?
+  status     String   @default("ativa")   // "ativa", "inativa", "concluída"
+
+  curso      Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  participantes UsuarioSala[]
+
+  @@map("salas_curso")
+}
+
+model UsuarioCurso {
+  usuarioId  Int
+  cursoId    Int
+  dataAdicao DateTime @default(now())
+  status     String   // "em andamento" | "concluído"
+
+  usuario    Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  curso      Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, cursoId])
+  @@map("usuarios_cursos")
+}
+
+model UsuarioSala {
+  salaId        Int
+  usuarioId     Int
+  dataMatricula DateTime @default(now())
+  status        String   @default("ativo")   // "ativo" | "cancelado_pelo_usuario" | "concluido" | "desistente"
+
+  sala     SalaCurso @relation(fields: [salaId], references: [id], onDelete: Cascade)
+  usuario  Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@id([salaId, usuarioId])
+  @@map("usuarios_salas")
+}
