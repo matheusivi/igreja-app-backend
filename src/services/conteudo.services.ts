@@ -4,15 +4,24 @@ import type {
   UpdateConteudoDTO,
   ConteudoResponse,
   ListarConteudosDTO,
+  ConteudoComUsuarioSimples,
 } from "../dtos/conteudo.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
-import { prisma } from "../lib/prisma";
+import { ConteudoRepository } from "../repository/conteudo.repository";
+import { AppError } from "../utils/AppError";
+import { Prisma } from "@prisma/client";
+import { Perfis } from "../constants/perfis";
 
 export class ConteudoService {
   private usuarioRepository: UsuarioRepository;
+  private conteudoRepository: ConteudoRepository;
 
-  constructor() {
-    this.usuarioRepository = new UsuarioRepository();
+  constructor(
+    usuarioRepository?: UsuarioRepository,
+    conteudoRepository?: ConteudoRepository,
+  ) {
+    this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
+    this.conteudoRepository = conteudoRepository ?? new ConteudoRepository();
   }
 
   public async create(
@@ -21,47 +30,32 @@ export class ConteudoService {
   ): Promise<ConteudoResponse> {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
-      throw new Error("Usuário não encontrado.");
+      throw new AppError("Usuário não encontrado.", 404);
     }
 
-    const novoConteudo = await prisma.conteudo.create({
-      data: {
-        usuarioId,
-        tipo: data.tipo,
-        titulo: data.titulo,
-        texto: data.texto || null,
-        imagemUrl: data.imagemUrl || null,
-        videoUrl: data.videoUrl || null,
-        formato: data.formato,
-        principal: data.principal || false,
-      },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
+    const novoConteudo = await this.conteudoRepository.criar({
+      usuario: { connect: { id: usuarioId } },
+      tipo: data.tipo,
+      titulo: data.titulo,
+      texto: data.texto || null,
+      imagemUrl: data.imagemUrl || null,
+      videoUrl: data.videoUrl || null,
+      formato: data.formato,
+      principal: data.principal || false,
+      dataValidade: data.dataValidade ? new Date(data.dataValidade) : null,
     });
 
-    return {
-      id: novoConteudo.id,
-      tipo: novoConteudo.tipo,
-      titulo: novoConteudo.titulo,
-      texto: novoConteudo.texto || undefined,
-      imagemUrl: novoConteudo.imagemUrl || undefined,
-      videoUrl: novoConteudo.videoUrl || undefined,
-      formato: novoConteudo.formato,
-      dataPublicacao: novoConteudo.dataPublicacao,
-      principal: novoConteudo.principal,
-      autor: {
-        id: novoConteudo.usuario.id,
-        nomeCompleto: novoConteudo.usuario.nomeCompleto,
-        perfil: novoConteudo.usuario.perfil,
-      },
-    };
+    return this.formatarResponse(novoConteudo);
+  }
+
+  public async getById(conteudoId: number): Promise<ConteudoResponse> {
+    const conteudo = await this.conteudoRepository.buscarPorId(conteudoId);
+
+    if (!conteudo) {
+      throw new AppError("Conteúdo não encontrado.", 404);
+    }
+
+    return this.formatarResponse(conteudo);
   }
 
   public async list(
@@ -71,49 +65,22 @@ export class ConteudoService {
 
     const skip = (page - 1) * limit;
 
-    const whereClause: any = {};
+    const whereClause: Prisma.ConteudoWhereInput = {};
     if (tipo) whereClause.tipo = tipo;
     if (busca) {
-      whereClause.titulo = {
-        contains: busca,
-        mode: "insensitive",
-      };
+      whereClause.titulo = { contains: busca, mode: "insensitive" };
     }
 
-    const conteudos = await prisma.conteudo.findMany({
-      ...(Object.keys(whereClause).length > 0 ? { where: whereClause } : {}),
+    const conteudos = await this.conteudoRepository.listar({
+      where: whereClause,
       orderBy: {
         dataPublicacao: orderBy === "recent" ? "desc" : "asc",
       },
       take: limit,
       skip,
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
     });
 
-    return conteudos.map((conteudo) => ({
-      id: conteudo.id,
-      tipo: conteudo.tipo,
-      titulo: conteudo.titulo,
-      texto: conteudo.texto || undefined,
-      imagemUrl: conteudo.imagemUrl || undefined,
-      videoUrl: conteudo.videoUrl || undefined,
-      formato: conteudo.formato,
-      dataPublicacao: conteudo.dataPublicacao,
-      principal: conteudo.principal,
-      autor: {
-        id: conteudo.usuario.id,
-        nomeCompleto: conteudo.usuario.nomeCompleto,
-        perfil: conteudo.usuario.perfil,
-      },
-    }));
+    return conteudos.map((conteudo) => this.formatarResponse(conteudo));
   }
 
   public async update(
@@ -122,40 +89,19 @@ export class ConteudoService {
     usuarioId: number,
     perfil: string,
   ): Promise<ConteudoResponse> {
-    const conteudoExistente = await prisma.conteudo.findUnique({
-      where: { id: conteudoId },
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
-    });
+    const conteudoExistente = await this.conteudoRepository.buscarPorId(conteudoId);
 
     if (!conteudoExistente) {
-      throw new Error("Conteúdo não encontrado.");
+      throw new AppError("Conteúdo não encontrado.", 404);
     }
 
     if (
-      perfil !== "Administrador" &&
+      perfil !== Perfis.ADMINISTRADOR &&
       conteudoExistente.usuarioId !== usuarioId
     ) {
-      throw new Error("Você não tem permissão para atualizar este conteúdo.");
+      throw new AppError("Você não tem permissão para atualizar este conteúdo.", 403);
     }
-
-    const updateData: {
-      tipo?: string;
-      titulo?: string;
-      texto?: string | null;
-      imagemUrl?: string | null;
-      videoUrl?: string | null;
-      formato?: string;
-      principal?: boolean;
-      dataValidade?: Date | null;
-    } = {};
+    const updateData: Prisma.ConteudoUpdateInput = {};
 
     if (data.tipo !== undefined) updateData.tipo = data.tipo;
     if (data.titulo !== undefined) updateData.titulo = data.titulo;
@@ -170,36 +116,12 @@ export class ConteudoService {
         : null;
     }
 
-    const conteudoAtualizado = await prisma.conteudo.update({
-      where: { id: conteudoId },
-      data: updateData,
-      include: {
-        usuario: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
-    });
+    const conteudoAtualizado = await this.conteudoRepository.atualizar(
+      conteudoId,
+      updateData,
+    );
 
-    return {
-      id: conteudoAtualizado.id,
-      tipo: conteudoAtualizado.tipo,
-      titulo: conteudoAtualizado.titulo,
-      texto: conteudoAtualizado.texto || undefined,
-      imagemUrl: conteudoAtualizado.imagemUrl || undefined,
-      videoUrl: conteudoAtualizado.videoUrl || undefined,
-      formato: conteudoAtualizado.formato,
-      dataPublicacao: conteudoAtualizado.dataPublicacao,
-      principal: conteudoAtualizado.principal,
-      autor: {
-        id: conteudoAtualizado.usuario.id,
-        nomeCompleto: conteudoAtualizado.usuario.nomeCompleto,
-        perfil: conteudoAtualizado.usuario.perfil,
-      },
-    };
+    return this.formatarResponse(conteudoAtualizado);
   }
 
   public async delete(
@@ -207,27 +129,38 @@ export class ConteudoService {
     usuarioId: number,
     perfil: string,
   ): Promise<void> {
-    const conteudoExistente = await prisma.conteudo.findUnique({
-      where: { id: conteudoId },
-      select: {
-        id: true,
-        usuarioId: true,
-      },
-    });
+    const conteudoExistente = await this.conteudoRepository.buscarParaPermissao(conteudoId);
 
     if (!conteudoExistente) {
-      throw new Error("Conteúdo não encontrado.");
+      throw new AppError("Conteúdo não encontrado.", 404);
     }
 
     if (
-      perfil !== "Administrador" &&
+      perfil !== Perfis.ADMINISTRADOR &&
       conteudoExistente.usuarioId !== usuarioId
     ) {
-      throw new Error("Você não tem permissão para excluir este conteúdo.");
+      throw new AppError("Você não tem permissão para excluir este conteúdo.", 403);
     }
 
-    await prisma.conteudo.delete({
-      where: { id: conteudoId },
-    });
+    await this.conteudoRepository.deletar(conteudoId);
+  }
+
+  private formatarResponse(conteudo: ConteudoComUsuarioSimples): ConteudoResponse {
+    return {
+      id: conteudo.id,
+      tipo: conteudo.tipo,
+      titulo: conteudo.titulo,
+      texto: conteudo.texto || undefined,
+      imagemUrl: conteudo.imagemUrl || undefined,
+      videoUrl: conteudo.videoUrl || undefined,
+      formato: conteudo.formato,
+      dataPublicacao: conteudo.dataPublicacao,
+      principal: conteudo.principal,
+      autor: {
+        id: conteudo.usuario?.id ?? 0,
+        nomeCompleto: conteudo.usuario?.nomeCompleto ?? "",
+        perfil: conteudo.usuario?.perfil ?? "",
+      },
+    };
   }
 }

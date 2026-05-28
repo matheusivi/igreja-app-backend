@@ -16,6 +16,12 @@ router.get('/',
     conteudoController.list
 )
 
+router.get('/:id',
+    authMiddleware.authenticate,
+    conteudoController.getById
+)
+
+
 
 router.put('/:id', authMiddleware.authenticate,
     authMiddleware.requireRole(['Administrador', 'Pastor', 'Líder']),

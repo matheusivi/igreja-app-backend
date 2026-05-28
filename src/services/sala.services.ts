@@ -1,283 +1,163 @@
 // src/services/sala.service.ts
 import type {
-  CreateSalaDTO,
-  ListSalasQuery,
-  SalaResponse,
-  UpdateSalaDTO,
-} from "../dtos/curso.dto";
+    CreateSalaDTO,
+    ListSalasQuery,
+    SalaResponse,
+    UpdateSalaDTO,
+    SalaComCursoSimples,
+} from "../dtos/sala.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
-import { prisma } from "../lib/prisma";
+import { SalaCursoRepository } from "../repository/salaCurso.repository";
+import { AppError } from "../utils/AppError";
+import { Prisma } from "@prisma/client";
+import { Perfis } from "../constants/perfis";
 
 export class SalaService {
-  private usuarioRepository: UsuarioRepository;
+    private usuarioRepository: UsuarioRepository;
+    private salaCursoRepository: SalaCursoRepository;
 
-  constructor() {
-    this.usuarioRepository = new UsuarioRepository();
-  }
-
-  public async create(
-    data: CreateSalaDTO,
-    usuarioId: number,
-  ): Promise<SalaResponse> {
-    const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
-    if (!usuario) {
-      throw new Error("Usuário não encontrado.");
+    constructor(
+        usuarioRepository?: UsuarioRepository,
+        salaCursoRepository?: SalaCursoRepository,
+    ) {
+        this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
+        this.salaCursoRepository = salaCursoRepository ?? new SalaCursoRepository();
     }
 
-    const cursoExiste = await prisma.curso.findUnique({
-      where: { id: data.cursoId },
-    });
+    public async create(
+        data: CreateSalaDTO,
+        usuarioId: number,
+    ): Promise<SalaResponse> {
+        const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
+        if (!usuario) throw new AppError("Usuário não encontrado", 404);
 
-    if (!cursoExiste) {
-      throw new Error("Curso não encontrado.");
+        const cursoExiste = await this.salaCursoRepository.cursoExiste(data.cursoId);
+        if (!cursoExiste) throw new AppError("Curso não encontrado", 404);
+
+        const novaSala = await this.salaCursoRepository.criar({
+            curso: { connect: { id: data.cursoId } },
+            nomeSala: data.nomeSala,
+            dataInicio: data.dataInicio ? new Date(data.dataInicio) : null,
+            dataFim: data.dataFim ? new Date(data.dataFim) : null,
+            status: "ativa",
+        });
+
+        return this.formatarResponse(novaSala);
     }
 
-    const novaSala = await prisma.salaCurso.create({
-      data: {
-        cursoId: data.cursoId,
-        nomeSala: data.nomeSala,
-        dataInicio: data.dataInicio ? new Date(data.dataInicio) : null,
-        dataFim: data.dataFim ? new Date(data.dataFim) : null,
-        status: "ativa",
-      },
-      include: {
-        curso: {
-          select: {
-            id: true,
-            nome: true,
-          },
-        },
-      },
-    });
+    public async getById(salaId: number): Promise<SalaResponse> {
+        const sala = await this.salaCursoRepository.buscarPorId(salaId);
+        if (!sala) throw new AppError("Sala não encontrada", 404);
 
-    return {
-      id: novaSala.id,
-      nomeSala: novaSala.nomeSala,
-      dataInicio: novaSala.dataInicio,
-      dataFim: novaSala.dataFim,
-      status: novaSala.status,
-      curso: {
-        id: novaSala.curso.id,
-        nome: novaSala.curso.nome,
-      },
-    };
-  }
-
-  public async list(filters: ListSalasQuery = {}): Promise<
-    Array<
-      SalaResponse & {
-        curso: SalaResponse["curso"] & {
-          criador: {
-            id: number;
-            nomeCompleto: string;
-            perfil: string;
-          };
-        };
-      }
-    >
-  > {
-    const {
-      cursoId,
-      status,
-      limit = 20,
-      page = 1,
-      busca,
-      cursoNome,
-      liderNome,
-    } = filters;
-
-    const skip = (page - 1) * limit;
-
-    const whereClauses: any[] = [];
-
-    if (cursoId !== undefined) {
-      whereClauses.push({ cursoId });
+        return this.formatarResponse(sala);
     }
 
-    if (status) {
-      whereClauses.push({ status });
+    public async list(filters: ListSalasQuery = {}): Promise<SalaResponse[]> {
+        const {
+            cursoId,
+            status,
+            limit = 20,
+            page = 1,
+            busca,
+            cursoNome,
+            liderNome,
+        } = filters;
+
+        const skip = (page - 1) * limit;
+
+        const whereClauses: Prisma.SalaCursoWhereInput[] = [];
+
+        if (cursoId !== undefined) whereClauses.push({ cursoId });
+        if (status) whereClauses.push({ status });
+        if (busca) {
+            whereClauses.push({ nomeSala: { contains: busca, mode: "insensitive" } });
+        }
+
+        const cursoFilter: Prisma.CursoWhereInput = {};
+        if (cursoNome) cursoFilter.nome = { contains: cursoNome, mode: "insensitive" };
+        if (liderNome) {
+            cursoFilter.criador = {
+                is: { nomeCompleto: { contains: liderNome, mode: "insensitive" } },
+            };
+        }
+
+        if (Object.keys(cursoFilter).length > 0) {
+            whereClauses.push({ curso: { is: cursoFilter } });
+        }
+
+        const salas = await this.salaCursoRepository.listar({
+            ...(whereClauses.length > 0 ? { where: { AND: whereClauses } } : {}),
+            orderBy: { id: "desc" },
+            take: limit,
+            skip,
+        });
+
+        return salas.map((sala) => this.formatarResponse(sala));
     }
 
-    if (busca) {
-      whereClauses.push({
-        nomeSala: {
-          contains: busca,
-          mode: "insensitive",
-        },
-      });
+    public async update(
+        salaId: number,
+        data: UpdateSalaDTO,
+        usuarioId: number,
+        perfil: string,
+    ): Promise<SalaResponse> {
+        const salaExistente = await this.salaCursoRepository.buscarParaPermissao(salaId);
+        if (!salaExistente) throw new AppError("Sala não encontrada", 404);
+
+        if (
+            perfil !== Perfis.ADMINISTRADOR &&
+            perfil !== Perfis.PASTOR &&
+            salaExistente.curso.criadorUsuarioId !== usuarioId
+        ) {
+            throw new AppError("Você não tem permissão para atualizar esta sala", 403);
+        }
+
+        const updateData: Prisma.SalaCursoUpdateInput = {};
+
+        if (data.nomeSala !== undefined) updateData.nomeSala = data.nomeSala;
+        if (data.dataInicio !== undefined) {
+            updateData.dataInicio = data.dataInicio ? new Date(data.dataInicio) : null;
+        }
+        if (data.dataFim !== undefined) {
+            updateData.dataFim = data.dataFim ? new Date(data.dataFim) : null;
+        }
+        if (data.status !== undefined) updateData.status = data.status;
+
+        const salaAtualizada = await this.salaCursoRepository.atualizar(salaId, updateData);
+
+        return this.formatarResponse(salaAtualizada);
     }
 
-    const cursoFilter: any = {};
+    public async delete(
+        salaId: number,
+        usuarioId: number,
+        perfil: string,
+    ): Promise<void> {
+        const salaExistente = await this.salaCursoRepository.buscarParaPermissao(salaId);
+        if (!salaExistente) throw new AppError("Sala não encontrada", 404);
 
-    if (cursoNome) {
-      cursoFilter.nome = {
-        contains: cursoNome,
-        mode: "insensitive",
-      };
+        if (
+            perfil !== Perfis.ADMINISTRADOR &&
+            perfil !== Perfis.PASTOR &&
+            salaExistente.curso.criadorUsuarioId !== usuarioId
+        ) {
+            throw new AppError("Você não tem permissão para atualizar esta sala", 403);
+        }
+
+        await this.salaCursoRepository.deletar(salaId);
     }
 
-    if (liderNome) {
-      cursoFilter.criador = {
-        is: {
-          nomeCompleto: {
-            contains: liderNome,
-            mode: "insensitive",
-          },
-        },
-      };
-    }
-
-    if (Object.keys(cursoFilter).length > 0) {
-      whereClauses.push({
-        curso: {
-          is: cursoFilter,
-        },
-      });
-    }
-
-    const salas = await prisma.salaCurso.findMany({
-      ...(whereClauses.length > 0 ? { where: { AND: whereClauses } } : {}),
-      orderBy: {
-        id: "desc",
-      },
-      take: limit,
-      skip,
-      include: {
-        curso: {
-          include: {
-            criador: {
-              select: {
-                id: true,
-                nomeCompleto: true,
-                perfil: true,
-              },
+    private formatarResponse(sala: SalaComCursoSimples): SalaResponse {
+        return {
+            id: sala.id,
+            nomeSala: sala.nomeSala,
+            dataInicio: sala.dataInicio,
+            dataFim: sala.dataFim,
+            status: sala.status,
+            curso: {
+                id: sala.curso?.id ?? 0,
+                nome: sala.curso?.nome ?? "",
             },
-          },
-        },
-      },
-    });
-
-    return salas.map((sala) => ({
-      id: sala.id,
-      nomeSala: sala.nomeSala,
-      dataInicio: sala.dataInicio,
-      dataFim: sala.dataFim,
-      status: sala.status,
-      curso: {
-        id: sala.curso.id,
-        nome: sala.curso.nome,
-        criador: {
-          id: sala.curso.criador.id,
-          nomeCompleto: sala.curso.criador.nomeCompleto,
-          perfil: sala.curso.criador.perfil,
-        },
-      },
-    }));
-  }
-
-  public async update(
-    salaId: number,
-    data: UpdateSalaDTO,
-    usuarioId: number,
-    perfil: string,
-  ): Promise<SalaResponse> {
-    const salaExistente = await prisma.salaCurso.findUnique({
-      where: { id: salaId },
-      include: {
-        curso: {
-          select: {
-            criadorUsuarioId: true,
-          },
-        },
-      },
-    });
-
-    if (!salaExistente) {
-      throw new Error("Sala não encontrada.");
+        };
     }
-
-    if (
-      perfil !== "Administrador" &&
-      perfil !== "Pastor" &&
-      salaExistente.curso.criadorUsuarioId !== usuarioId
-    ) {
-      throw new Error("Você não tem permissão para atualizar esta sala.");
-    }
-
-    const updateData: {
-      nomeSala?: string;
-      dataInicio?: Date | null;
-      dataFim?: Date | null;
-      status?: string;
-    } = {};
-
-    if (data.nomeSala !== undefined) updateData.nomeSala = data.nomeSala;
-    if (data.dataInicio !== undefined) {
-      updateData.dataInicio = data.dataInicio
-        ? new Date(data.dataInicio)
-        : null;
-    }
-    if (data.dataFim !== undefined) {
-      updateData.dataFim = data.dataFim ? new Date(data.dataFim) : null;
-    }
-    if (data.status !== undefined) updateData.status = data.status;
-
-    const salaAtualizada = await prisma.salaCurso.update({
-      where: { id: salaId },
-      data: updateData,
-      include: {
-        curso: {
-          select: {
-            id: true,
-            nome: true,
-          },
-        },
-      },
-    });
-
-    return {
-      id: salaAtualizada.id,
-      nomeSala: salaAtualizada.nomeSala,
-      dataInicio: salaAtualizada.dataInicio,
-      dataFim: salaAtualizada.dataFim,
-      status: salaAtualizada.status,
-      curso: {
-        id: salaAtualizada.curso.id,
-        nome: salaAtualizada.curso.nome,
-      },
-    };
-  }
-
-  public async delete(
-    salaId: number,
-    usuarioId: number,
-    perfil: string,
-  ): Promise<void> {
-    const salaExistente = await prisma.salaCurso.findUnique({
-      where: { id: salaId },
-      include: {
-        curso: {
-          select: {
-            criadorUsuarioId: true,
-          },
-        },
-      },
-    });
-
-    if (!salaExistente) {
-      throw new Error("Sala não encontrada.");
-    }
-
-    if (
-      perfil !== "Administrador" &&
-      perfil !== "Pastor" &&
-      salaExistente.curso.criadorUsuarioId !== usuarioId
-    ) {
-      throw new Error("Você não tem permissão para excluir esta sala.");
-    }
-
-    await prisma.salaCurso.delete({
-      where: { id: salaId },
-    });
-  }
 }

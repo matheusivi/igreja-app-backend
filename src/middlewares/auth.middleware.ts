@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.services';
+import type { TokenPayload } from '../services/auth.services';
 
 export interface AuthRequest extends Request {
     user?: {
@@ -44,7 +45,7 @@ export class AuthMiddleware {
                 return;
             }
 
-            const decoded = this.authService.verifyToken(token);
+            const decoded: TokenPayload = this.authService.verifyToken(token);
 
             req.user = {
                 id: decoded.id,

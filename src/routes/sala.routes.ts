@@ -5,16 +5,21 @@ import { authMiddleware } from '../middlewares/auth.middleware';
 const router = Router();
 const salaController = new SalaController();
 
-router.post('/:cursoId/salas', 
+router.post('/:cursoId',
     authMiddleware.authenticate,
     authMiddleware.requireRole(['Administrador', 'Pastor', 'Líder']),
     salaController.create
 );
 
-router.get('/', 
+router.get('/',
     authMiddleware.authenticate,
     salaController.list
-)
+);
+
+router.get('/:id',
+    authMiddleware.authenticate,
+    salaController.getById
+);
 
 router.put('/:id',
     authMiddleware.authenticate,

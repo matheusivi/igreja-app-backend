@@ -3,29 +3,48 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { RegisterDTO, LoginDTO, AuthResponse } from '../dtos/auth.dto';
 import { UsuarioRepository } from '../repository/usuario.repository';
+import { AppError } from '../utils/AppError';
+import { Perfis } from '../constants/perfis';
+
+export interface TokenPayload {
+  id: number;
+  perfil: string;
+  iat: number;
+  exp: number;
+}
 
 export class AuthService {
-  private readonly JWT_SECRET = process.env.JWT_SECRET || 'default-secret-change-in-production';
+  private readonly JWT_SECRET: string;
   private readonly SALT_ROUNDS = 10;
   private usuarioRepository: UsuarioRepository;
 
-  constructor() {
-    this.usuarioRepository = new UsuarioRepository();
+  constructor(usuarioRepository?: UsuarioRepository) {
+    this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error(
+        'JWT_SECRET não foi definido no arquivo .env. Isso é uma falha crítica de segurança.'
+      );
+    }
+
+    // Validação adicional de força do secret
+    if (process.env.JWT_SECRET.length < 32) {
+      throw new Error('JWT_SECRET deve ter pelo menos 32 caracteres.');
+    }
+
+    this.JWT_SECRET = process.env.JWT_SECRET;
   }
 
   public async register(data: RegisterDTO): Promise<AuthResponse> {
     const { nomeCompleto, email, senha, dataNascimento, estadoCivil, profissao } = data;
 
-    // Verifica se o e-mail já existe
     const usuarioExistente = await this.usuarioRepository.buscarPorEmail(email);
     if (usuarioExistente) {
-      throw new Error('Este e-mail já está cadastrado no sistema.');
+      throw new AppError('Este e-mail já está cadastrado no sistema.', 409);
     }
 
-    // Hash da senha
     const senhaHash = await bcrypt.hash(senha, this.SALT_ROUNDS);
 
-    // Cria o usuário
     const novoUsuario = await this.usuarioRepository.criar({
       nomeCompleto,
       email,
@@ -51,12 +70,12 @@ export class AuthService {
 
     const usuario = await this.usuarioRepository.buscarPorEmail(email);
     if (!usuario) {
-      throw new Error('E-mail ou senha inválidos.');
+      throw new AppError('E-mail ou senha inválidos.', 401);
     }
 
     const senhaValida = await bcrypt.compare(senha, usuario.senha);
     if (!senhaValida) {
-      throw new Error('E-mail ou senha inválidos.');
+      throw new AppError('E-mail ou senha inválidos.', 401);
     }
 
     const token = this.generateToken(usuario.id, usuario.perfil);
@@ -71,13 +90,14 @@ export class AuthService {
   }
 
   /**
-   * Busca usuário por ID - Usado pela rota /me
+   * Busca usuário por ID SEM retornar a senha
+   * Usado pela rota /me e middlewares
    */
   public async getUserById(id: number) {
     const usuario = await this.usuarioRepository.buscarPorId(id);
-    
+
     if (!usuario) {
-      throw new Error('Usuário não encontrado.');
+      throw new AppError('Usuário não encontrado.', 404);
     }
 
     return usuario;
@@ -87,15 +107,15 @@ export class AuthService {
     return jwt.sign(
       { id: userId, perfil },
       this.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }        // Reduzido de 7d para 24h (melhor prática)
     );
   }
 
-  public verifyToken(token: string): any {
+  public verifyToken(token: string): TokenPayload {
     try {
-      return jwt.verify(token, this.JWT_SECRET);
+      return jwt.verify(token, this.JWT_SECRET) as TokenPayload;
     } catch (error) {
-      throw new Error('Token inválido ou expirado.');
+      throw new AppError('Token inválido ou expirado.', 401);
     }
   }
 }

@@ -74,3 +74,17 @@ export const UpdateSalaSchema = z.object({
 });
 
 export type UpdateSalaInput = z.infer<typeof UpdateSalaSchema>;
+
+export const IdParamSchema = z.coerce.number().int().positive("ID inválido");
+
+export const CursoIdParamSchema = z.coerce.number().int().positive("ID do curso inválido");
+
+export const ListSalasQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  cursoId: z.coerce.number().int().positive().optional(),
+  status: z.string().optional(),
+  busca: z.string().optional(),
+  cursoNome: z.string().optional(),
+  liderNome: z.string().optional(),
+});

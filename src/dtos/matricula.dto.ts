@@ -1,57 +1,33 @@
-// src/dtos/curso.dto.ts
-
-// ====================== CURSOS ======================
-export interface CreateCursoDTO {
-  nome: string;
-  descricaoMaterial?: string | null | undefined;
-  categoria: string;        // "Homens", "Mulheres", "Casais", "Jovens", "Adolescentes", "Geral", etc.
-}
-
-export interface UpdateCursoDTO {
-  nome?: string | undefined;
-  descricaoMaterial?: string | null | undefined;
-  categoria?: string | undefined;
-}
-
-export interface CursoResponse {
-  id: number;
-  nome: string;
-  descricaoMaterial?: string | null | undefined;
-  categoria: string;
-  criador: {
-    id: number;
-    nomeCompleto: string;
-    perfil: string;
-  };
-}
-
-// ====================== SALAS ======================
-export interface CreateSalaDTO {
-  cursoId: number;
-  nomeSala: string;
-  dataInicio?: string;      // formato "YYYY-MM-DD"
-  dataFim?: string;         // formato "YYYY-MM-DD"
-}
-
-export interface SalaResponse {
-  id: number;
-  nomeSala: string;
-  dataInicio: Date | null;
-  dataFim: Date | null;
-  status: string;           // "ativa" | "inativa" | "concluída"
-  curso: {
-    id: number;
-    nome: string;
-  };
-}
+// src/dtos/matricula.dto.ts
 
 // ====================== MATRÍCULA EM SALA ======================
 export interface MatricularSalaDTO {
   salaId: number;
 }
 
+// ====================== RESPOSTA DE MATRÍCULA ======================
+export interface MatriculaResponse {
+  salaId: number;
+  usuarioId: number;
+  nomeSala: string;
+  nomeCurso: string;
+  dataMatricula: Date;
+  status: string;
+}
 
+// ====================== PARTICIPANTES DA SALA (para Líder) ======================
+export interface ParticipanteSalaResponse {
+  usuarioId: number;
+  nomeCompleto: string;
+  perfil: string;
+  dataMatricula: Date;
+  status: 'ativo' | 'concluido' | 'desistente' | 'cancelado_pelo_usuario';
+}
 
+// ====================== ATUALIZAR STATUS (Líder) ======================
+export interface AtualizarStatusParticipanteDTO {
+  status: 'concluido' | 'desistente';
+}
 
 // ====================== HISTÓRICO DO USUÁRIO ======================
 export interface HistoricoCursoResponse {
@@ -60,35 +36,13 @@ export interface HistoricoCursoResponse {
   categoria: string;
   status: string;           // "em andamento" | "concluído"
   dataAdicao: Date;
+  nomeSala?: string;        // opcional, caso queira mostrar a sala específica
+  dataMatricula?: Date;
 }
 
-// ====================== LISTAGEM ======================
-
-export interface ListCursosQuery {
-  categoria?: string;
-  busca?: string;           // busca por nome do curso
-  limit?: number;
-  page?: number;
-  orderBy?: 'recent' | 'oldest';
-}
-
-// Para listagem de salas de um curso
-export interface ListSalasQuery {
-  cursoId?: number | undefined;
-  status?: string | undefined;
-  limit?: number | undefined;
-  page?: number | undefined;
-  busca?: string | undefined;
-  cursoNome?: string | undefined;    // busca pelo nome do curso
-  liderNome?: string | undefined;    // busca pelo nome do criador do curso
-}
-
-// Adicione no final do arquivo
-
-export interface UpdateSalaDTO {
-  nomeSala?: string;
-  dataInicio?: string;
-  dataFim?: string;
-  status?: 'ativa' | 'inativa' | 'concluída';
-}
-
+// ====================== TIPOS AUXILIARES ======================
+export type StatusMatricula =
+  | 'ativo'
+  | 'concluido'
+  | 'desistente'
+  | 'cancelado_pelo_usuario';

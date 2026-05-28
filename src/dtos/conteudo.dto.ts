@@ -3,17 +3,31 @@
 export interface CreateConteudoDTO {
   tipo: 'Estudo' | 'Devocional' | 'Aviso' | 'Material' | 'Apresentacao';
   titulo: string;
-  
-  // Campos separados para facilitar o frontend
-  texto?: string | undefined;           // Texto principal (pode ser rich text)
-  imagemUrl?: string | undefined;       // URL da imagem (se houver)
-  videoUrl?: string | undefined;        // URL do vídeo (YouTube ou link direto)
-  
+  texto?: string | undefined;
+  imagemUrl?: string | undefined;
+  videoUrl?: string | undefined;
   formato: 'texto' | 'imagem' | 'vídeo' | 'combinacao';
-  principal?: boolean | undefined;      // Usado apenas para tipo "Apresentacao"
-  
-  // Campos opcionais por tipo
-  dataValidade?: string | undefined;    // Para Avisos (opcional)
+  principal?: boolean | undefined;
+  dataValidade?: string | undefined;
+}
+
+export interface UpdateConteudoDTO {
+  tipo?: 'Estudo' | 'Devocional' | 'Aviso' | 'Material' | 'Apresentacao' | undefined;
+  titulo?: string | undefined;
+  texto?: string | undefined;
+  imagemUrl?: string | undefined;
+  videoUrl?: string | undefined;
+  formato?: 'texto' | 'imagem' | 'vídeo' | 'combinacao' | undefined;
+  principal?: boolean | undefined;
+  dataValidade?: string | undefined;
+}
+
+export interface ListarConteudosDTO {
+  tipo?: string | undefined;
+  busca?: string | undefined;
+  limit?: number | undefined;
+  page?: number | undefined;
+  orderBy?: 'recent' | 'oldest' | undefined;
 }
 
 export interface ConteudoResponse {
@@ -33,23 +47,21 @@ export interface ConteudoResponse {
   };
 }
 
-
-export interface ListarConteudosDTO {
- tipo?: string;           // filtro por tipo (Devocional, Estudo, etc.)
-  busca?: string;          // busca por título
-  limit?: number;          // quantidade de itens por página
-  page?: number;           // número da página
-  orderBy?: 'recent' | 'oldest'; // ordenação
-}
-
-export interface UpdateConteudoDTO {
-  tipo?: 'Estudo' | 'Devocional' | 'Aviso' | 'Material' | 'Apresentacao' | undefined;
-  titulo?: string | undefined;
-  texto?: string | undefined;
-  imagemUrl?: string | undefined;
-  videoUrl?: string | undefined;
-  formato?: 'texto' | 'imagem' | 'vídeo' | 'combinacao' | undefined;
-  principal?: boolean | undefined;
-  dataValidade?: string | undefined;
-}
-
+// Tipo interno para o Service
+export type ConteudoComUsuarioSimples = {
+  id: number;
+  tipo: string;
+  titulo: string;
+  texto: string | null;
+  imagemUrl: string | null;
+  videoUrl: string | null;
+  formato: string;
+  dataPublicacao: Date;
+  principal: boolean;
+  dataValidade: Date | null;
+  usuario?: {
+    id: number;
+    nomeCompleto: string;
+    perfil: string;
+  } | null;
+};

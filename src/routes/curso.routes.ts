@@ -16,6 +16,12 @@ router.get('/',
   cursoController.list
 );
 
+router.get('/:id',
+  authMiddleware.authenticate,
+  cursoController.getById
+);
+
+
 router.put('/:id',
   authMiddleware.authenticate,
   authMiddleware.requireRole(['Administrador', 'Pastor', 'Líder']),

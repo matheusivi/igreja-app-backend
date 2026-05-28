@@ -1,7 +1,10 @@
+// src/controllers/auth.controller.ts
 import type { Request, Response } from "express";
+import type { AuthRequest } from "../middlewares/auth.middleware";
 import { AuthService } from "../services/auth.services";
 import type { RegisterDTO, LoginDTO } from "../dtos/auth.dto";
-import type { AuthRequest } from "../middlewares/auth.middleware";
+import { RegisterSchema, LoginSchema } from "../validation/auth.validation";
+import { AppError } from "../utils/AppError";
 
 export class AuthController {
   private authService: AuthService;
@@ -11,78 +14,47 @@ export class AuthController {
   }
 
   public register = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const data: RegisterDTO = req.body;
-      const result = await this.authService.register(data);
+    const validatedData = RegisterSchema.parse(req.body);
+    const result = await this.authService.register(validatedData);
 
-      res.status(201).json({
-        success: true,
-        message: "Usuário cadastrado com sucesso",
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message,
-      });
-    }
+    res.status(201).json({
+      success: true,
+      message: "Usuário cadastrado com sucesso",
+      data: result,
+    });
   };
 
   public login = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const data: LoginDTO = req.body;
-      const result = await this.authService.login(data);
+    const validatedData = LoginSchema.parse(req.body);
+    const result = await this.authService.login(validatedData);
 
-      res.status(200).json({
-        success: true,
-        message: "Login realizado com sucesso",
-        data: result,
-      });
-    } catch (error: any) {
-      res.status(401).json({
-        success: false,
-        message: error.message,
-      });
-    }
+    res.status(200).json({
+      success: true,
+      message: "Login realizado com sucesso",
+      data: result,
+    });
   };
 
-  /**
-   * Retorna os dados do usuário atualmente logado
-   * Rota: GET /api/auth/me
-   * Usada para testar o middleware de autenticação
-   */
   public getCurrentUser = async (
     req: AuthRequest,
-    res: Response,
+    res: Response
   ): Promise<void> => {
-    try {
-      if (!req.user) {
-        res.status(401).json({
-          success: false,
-          message: "Usuário não autenticado",
-        });
-        return;
-      }
-
-      const usuario = await this.authService.getUserById(req.user.id);
-
-      res.status(200).json({
-        success: true,
-        data: {
-          id: usuario.id,
-          nomeCompleto: usuario.nomeCompleto,
-          email: usuario.email,
-          perfil: usuario.perfil,
-          profissao: usuario.profissao,
-          exibirAniversario: usuario.exibirAniversario,
-        },
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: "Erro ao buscar informações do usuário logado",
-        error: error.message,
-      });
+    if (!req.user) {
+      throw new AppError("Usuário não autenticado", 401);
     }
+
+    const usuario = await this.authService.getUserById(req.user.id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id: usuario.id,
+        nomeCompleto: usuario.nomeCompleto,
+        email: usuario.email,
+        perfil: usuario.perfil,
+        profissao: usuario.profissao,
+        exibirAniversario: usuario.exibirAniversario,
+      },
+    });
   };
 }

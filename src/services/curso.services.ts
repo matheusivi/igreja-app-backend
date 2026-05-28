@@ -4,15 +4,24 @@ import type {
   UpdateCursoDTO,
   CursoResponse,
   ListCursosQuery,
+  CursoComCriadorSimples,
 } from "../dtos/curso.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
-import { prisma } from "../lib/prisma";
+import { CursoRepository } from "../repository/curso.repository";
+import { AppError } from "../utils/AppError";
+import { Prisma } from "@prisma/client";
+import { Perfis } from "../constants/perfis";
 
 export class CursoService {
   private usuarioRepository: UsuarioRepository;
+  private cursoRepository: CursoRepository;
 
-  constructor() {
-    this.usuarioRepository = new UsuarioRepository();
+  constructor(
+    usuarioRepository?: UsuarioRepository,
+    cursoRepository?: CursoRepository,
+  ) {
+    this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
+    this.cursoRepository = cursoRepository ?? new CursoRepository();
   }
 
   public async create(
@@ -21,38 +30,27 @@ export class CursoService {
   ): Promise<CursoResponse> {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) {
-      throw new Error("Usuário não encontrado.");
+      throw new AppError("Usuário não encontrado.", 404);
     }
 
-    const novoCurso = await prisma.curso.create({
-      data: {
-        criadorUsuarioId: usuarioId,
-        nome: data.nome,
-        descricaoMaterial: data.descricaoMaterial || null,
-        categoria: data.categoria,
-      },
-      include: {
-        criador: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
+    const novoCurso = await this.cursoRepository.criar({
+      criador: { connect: { id: usuarioId } },
+      nome: data.nome,
+      descricaoMaterial: data.descricaoMaterial || null,
+      categoria: data.categoria,
     });
 
-    return {
-      id: novoCurso.id,
-      nome: novoCurso.nome,
-      descricaoMaterial: novoCurso.descricaoMaterial || undefined,
-      categoria: novoCurso.categoria,
-      criador: {
-        id: novoCurso.criador.id,
-        nomeCompleto: novoCurso.criador.nomeCompleto,
-        perfil: novoCurso.criador.perfil,
-      },
-    };
+    return this.formatarResponse(novoCurso);
+  }
+
+  public async getById(cursoId: number): Promise<CursoResponse> {
+    const curso = await this.cursoRepository.buscarPorId(cursoId);
+
+    if (!curso) {
+      throw new AppError("Curso não encontrado.", 404);
+    }
+
+    return this.formatarResponse(curso);
   }
 
   public async list(filters: ListCursosQuery = {}): Promise<CursoResponse[]> {
@@ -66,43 +64,21 @@ export class CursoService {
 
     const skip = (page - 1) * limit;
 
-    const cursos = await prisma.curso.findMany({
+    const cursos = await this.cursoRepository.listar({
       where: {
         ...(categoria && { categoria }),
         ...(busca && {
-          nome: {
-            contains: busca,
-            mode: "insensitive",
-          },
+          nome: { contains: busca, mode: "insensitive" },
         }),
       },
       orderBy: {
         id: orderBy === "oldest" ? "asc" : "desc",
       },
       take: limit,
-      skip: skip,
-      include: {
-        criador: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
+      skip,
     });
 
-    return cursos.map((curso) => ({
-      id: curso.id,
-      nome: curso.nome,
-      descricaoMaterial: curso.descricaoMaterial || undefined,
-      categoria: curso.categoria,
-      criador: {
-        id: curso.criador.id,
-        nomeCompleto: curso.criador.nomeCompleto,
-        perfil: curso.criador.perfil,
-      },
-    }));
+    return cursos.map((curso) => this.formatarResponse(curso));
   }
 
   public async update(
@@ -111,73 +87,28 @@ export class CursoService {
     usuarioId: number,
     perfil: string,
   ): Promise<CursoResponse> {
-    const cursoExistente = await prisma.curso.findUnique({
-      where: { id: cursoId },
-      include: {
-        criador: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
-    });
+    const cursoExistente = await this.cursoRepository.buscarPorId(cursoId);
 
     if (!cursoExistente) {
-      throw new Error("Curso não encontrado.");
+      throw new AppError("Curso não encontrado.", 404);
     }
 
     if (
-      perfil !== "Administrador" &&
+      perfil !== Perfis.ADMINISTRADOR &&
       cursoExistente.criadorUsuarioId !== usuarioId
     ) {
-      throw new Error("Você não tem permissão para atualizar este curso.");
+      throw new AppError("Você não tem permissão para atualizar este curso.", 403);
     }
 
-    const updateData: {
-      nome?: string;
-      descricaoMaterial?: string | null;
-      categoria?: string;
-    } = {};
+    const updateData: Prisma.CursoUpdateInput = {};
 
-    if (data.nome !== undefined) {
-      updateData.nome = data.nome;
-    }
+    if (data.nome !== undefined) updateData.nome = data.nome;
+    if (data.descricaoMaterial !== undefined) updateData.descricaoMaterial = data.descricaoMaterial;
+    if (data.categoria !== undefined) updateData.categoria = data.categoria;
 
-    if (data.descricaoMaterial !== undefined) {
-      updateData.descricaoMaterial = data.descricaoMaterial;
-    }
+    const cursoAtualizado = await this.cursoRepository.atualizar(cursoId, updateData);
 
-    if (data.categoria !== undefined) {
-      updateData.categoria = data.categoria;
-    }
-
-    const cursoAtualizado = await prisma.curso.update({
-      where: { id: cursoId },
-      data: updateData,
-      include: {
-        criador: {
-          select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-          },
-        },
-      },
-    });
-
-    return {
-      id: cursoAtualizado.id,
-      nome: cursoAtualizado.nome,
-      descricaoMaterial: cursoAtualizado.descricaoMaterial || undefined,
-      categoria: cursoAtualizado.categoria,
-      criador: {
-        id: cursoAtualizado.criador.id,
-        nomeCompleto: cursoAtualizado.criador.nomeCompleto,
-        perfil: cursoAtualizado.criador.perfil,
-      },
-    };
+    return this.formatarResponse(cursoAtualizado);
   }
 
   public async delete(
@@ -185,27 +116,32 @@ export class CursoService {
     usuarioId: number,
     perfil: string,
   ): Promise<void> {
-    const cursoExistente = await prisma.curso.findUnique({
-      where: { id: cursoId },
-      select: {
-        id: true,
-        criadorUsuarioId: true,
-      },
-    });
+    const cursoExistente = await this.cursoRepository.buscarParaPermissao(cursoId);
 
     if (!cursoExistente) {
-      throw new Error("Curso não encontrado.");
+      throw new AppError("Curso não encontrado.", 404);
     }
 
     if (
-      perfil !== "Administrador" &&
+      perfil !== Perfis.ADMINISTRADOR &&
       cursoExistente.criadorUsuarioId !== usuarioId
     ) {
-      throw new Error("Você não tem permissão para excluir este curso.");
+      throw new AppError("Você não tem permissão para excluir este curso.", 403);
     }
+    await this.cursoRepository.deletar(cursoId);
+  }
 
-    await prisma.curso.delete({
-      where: { id: cursoId },
-    });
+  private formatarResponse(curso: CursoComCriadorSimples): CursoResponse {
+    return {
+      id: curso.id,
+      nome: curso.nome,
+      descricaoMaterial: curso.descricaoMaterial || undefined,
+      categoria: curso.categoria,
+      criador: {
+        id: curso.criador?.id ?? 0,
+        nomeCompleto: curso.criador?.nomeCompleto ?? "",
+        perfil: curso.criador?.perfil ?? "",
+      },
+    };
   }
 }
