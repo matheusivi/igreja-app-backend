@@ -13,6 +13,7 @@ import { salaRoutes } from './src/routes/sala.routes';
 import { matriculaRoutes } from './src/routes/matricula.routes';
 import { pedidoOracaoRoutes } from './src/routes/pedidoOracao.routes';
 import { grupoFamiliarRoutes } from './src/routes/grupoFamiliar.routes';
+import { usuarioRoutes } from './src/routes/usuario.routes';
 
 import { errorHandler } from './src/middlewares/error.middleware';
 
@@ -48,6 +49,7 @@ app.use('/api/salas', salaRoutes);
 app.use('/api/matriculas', matriculaRoutes);
 app.use('/api/pedido-oracao', pedidoOracaoRoutes);
 app.use('/api/familias', grupoFamiliarRoutes);
+app.use('/api/usuarios', usuarioRoutes);
 
 // ======================
 // Rotas Básicas

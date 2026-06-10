@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">77.96% </span>
+                <span class="strong">74.57% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>46/59</span>
+                <span class='fraction'>44/59</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">87.5% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>8/8</span>
+                <span class='fraction'>7/8</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">88% </span>
+                <span class="strong">84.31% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>44/50</span>
+                <span class='fraction'>43/51</span>
             </div>
         
             
@@ -227,7 +227,15 @@
 <a name='L162'></a><a href='#L162'>162</a>
 <a name='L163'></a><a href='#L163'>163</a>
 <a name='L164'></a><a href='#L164'>164</a>
-<a name='L165'></a><a href='#L165'>165</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -309,7 +317,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -374,7 +388,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -398,6 +412,7 @@ import type {
   ConteudoResponse,
   ListarConteudosDTO,
   ConteudoComUsuarioSimples,
+  ListarConteudosResponse,
 } from "../dtos/conteudo.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { ConteudoRepository } from "../repository/conteudo.repository";
@@ -453,7 +468,7 @@ export class ConteudoService {
 &nbsp;
   public async list(
     filters: ListarConteudosDTO = {},
-  ): Promise&lt;ConteudoResponse[]&gt; {
+  ): Promise&lt;ListarConteudosResponse&gt; {
     const { tipo, limit = 20, busca, orderBy = "recent", page = 1 } = filters;
 &nbsp;
     const skip = (page - 1) * limit;
@@ -464,16 +479,22 @@ export class ConteudoService {
 <span class="cstat-no" title="statement not covered" >      whereClause.titulo = { contains: busca, mode: "insensitive" };</span>
     }
 &nbsp;
-    const conteudos = await this.conteudoRepository.listar({
+     const [conteudos, total] = await Promise.all([
+    this.conteudoRepository.listar({
       where: whereClause,
-      orderBy: {
-        dataPublicacao: orderBy === "recent" ? "desc" : <span class="branch-1 cbranch-no" title="branch not covered" >"asc",</span>
-      },
+      orderBy: { dataPublicacao: orderBy === 'recent' ? 'desc' : <span class="branch-1 cbranch-no" title="branch not covered" >'asc' </span>},
       take: limit,
       skip,
-    });
+    }),
+    this.conteudoRepository.contar(whereClause),
+  ]);
 &nbsp;
-    return conteudos.map((conteudo) =&gt; this.formatarResponse(conteudo));
+<span class="cstat-no" title="statement not covered" >    return {</span>
+    data: conteudos.map(<span class="fstat-no" title="function not covered" >(c</span>onteudo) =&gt; <span class="cstat-no" title="statement not covered" >this.formatarResponse(conteudo))</span>,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
   }
 &nbsp;
   public async update(
@@ -562,7 +583,7 @@ export class ConteudoService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-07T19:43:41.579Z
+                at 2026-06-10T01:33:21.261Z
             </div>
         <script src="../prettify.js"></script>
         <script>
