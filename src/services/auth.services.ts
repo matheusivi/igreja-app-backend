@@ -1,7 +1,7 @@
 // src/services/auth.service.ts
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import type { RegisterDTO, LoginDTO, AuthResponse } from '../dtos/auth.dto';
+import type { RegisterDTO, LoginDTO, AuthResponse, UpdateMeDTO } from '../dtos/auth.dto';
 import { UsuarioRepository } from '../repository/usuario.repository';
 import { AppError } from '../utils/AppError';
 import { Perfis } from '../constants/perfis';
@@ -9,6 +9,7 @@ import { Perfis } from '../constants/perfis';
 export interface TokenPayload {
   id: number;
   perfil: string;
+  sexo: string; 
   iat: number;
   exp: number;
 }
@@ -36,7 +37,7 @@ export class AuthService {
   }
 
   public async register(data: RegisterDTO): Promise<AuthResponse> {
-    const { nomeCompleto, email, senha, dataNascimento, estadoCivil, profissao } = data;
+    const { nomeCompleto, email, senha, dataNascimento, sexo, estadoCivil, profissao } = data;
 
     const usuarioExistente = await this.usuarioRepository.buscarPorEmail(email);
     if (usuarioExistente) {
@@ -50,11 +51,12 @@ export class AuthService {
       email,
       senhaHash,
       dataNascimento,
+      sexo,
       estadoCivil,
       profissao,
     });
 
-    const token = this.generateToken(novoUsuario.id, novoUsuario.perfil);
+    const token = this.generateToken(novoUsuario.id, novoUsuario.perfil, novoUsuario.sexo ?? '');
 
     return {
       id: novoUsuario.id,
@@ -78,7 +80,7 @@ export class AuthService {
       throw new AppError('E-mail ou senha inválidos.', 401);
     }
 
-    const token = this.generateToken(usuario.id, usuario.perfil);
+    const token = this.generateToken(usuario.id, usuario.perfil, usuario.sexo ?? '');
 
     return {
       id: usuario.id,
@@ -103,9 +105,9 @@ export class AuthService {
     return usuario;
   }
 
-  private generateToken(userId: number, perfil: string): string {
+  private generateToken(userId: number, perfil: string, sexo: string): string {
     return jwt.sign(
-      { id: userId, perfil },
+      { id: userId, perfil, sexo },
       this.JWT_SECRET,
       { expiresIn: '24h' }        // Reduzido de 7d para 24h (melhor prática)
     );
@@ -118,4 +120,26 @@ export class AuthService {
       throw new AppError('Token inválido ou expirado.', 401);
     }
   }
+
+  public async updateMe(
+  usuarioId: number,
+  data: UpdateMeDTO,
+): Promise<object> {
+  const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
+  if (!usuario) throw new AppError('Usuário não encontrado.', 404);
+
+  const usuarioAtualizado = await this.usuarioRepository.atualizarDados(usuarioId, data);
+
+  return usuarioAtualizado;
+}
+
+public async atualizarPerfil(
+  usuarioId: number,
+  novoPerfil: string,
+): Promise<void> {
+  const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
+  if (!usuario) throw new AppError('Usuário não encontrado.', 404);
+
+  await this.usuarioRepository.atualizarPerfil(usuarioId, novoPerfil);
+}
 }

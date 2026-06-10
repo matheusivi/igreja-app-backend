@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">44.44% </span>
+                <span class="strong">42.85% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>24/54</span>
+                <span class='fraction'>24/56</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.14% </span>
+                <span class="strong">35.13% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>13/35</span>
+                <span class='fraction'>13/37</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">48.88% </span>
+                <span class="strong">46.8% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>22/45</span>
+                <span class='fraction'>22/47</span>
             </div>
         
             
@@ -244,7 +244,11 @@
 <a name='L179'></a><a href='#L179'>179</a>
 <a name='L180'></a><a href='#L180'>180</a>
 <a name='L181'></a><a href='#L181'>181</a>
-<a name='L182'></a><a href='#L182'>182</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -305,13 +309,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -474,50 +482,54 @@ export class MatriculaService {
     // ========================
     // MATRICULAR
     // ========================
-    public <span class="fstat-no" title="function not covered" >async </span>matricular(salaId: number, usuarioId: number): Promise&lt;MatriculaResponse&gt; {
-        const usuario = <span class="cstat-no" title="statement not covered" >await this.usuarioRepository.buscarPorId(usuarioId);</span>
-<span class="cstat-no" title="statement not covered" >        if (!usuario) <span class="cstat-no" title="statement not covered" >throw new AppError("Usuário não encontrado", 404);</span></span>
+   public <span class="fstat-no" title="function not covered" >async </span>matricular(salaId: number, usuarioId: number): Promise&lt;MatriculaResponse&gt; {
+  const usuario = <span class="cstat-no" title="statement not covered" >await this.usuarioRepository.buscarPorId(usuarioId);</span>
+<span class="cstat-no" title="statement not covered" >  if (!usuario) <span class="cstat-no" title="statement not covered" >throw new AppError('Usuário não encontrado', 404);</span></span>
 &nbsp;
-        const sala = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.salaExiste(salaId);</span>
-<span class="cstat-no" title="statement not covered" >        if (!sala) <span class="cstat-no" title="statement not covered" >throw new AppError("Sala não encontrada", 404);</span></span>
-<span class="cstat-no" title="statement not covered" >        if (sala.status !== "ativa") <span class="cstat-no" title="statement not covered" >throw new AppError("Esta sala não está aberta para matrículas", 400);</span></span>
+  const sala = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.salaExiste(salaId);</span>
+<span class="cstat-no" title="statement not covered" >  if (!sala) <span class="cstat-no" title="statement not covered" >throw new AppError('Sala não encontrada', 404);</span></span>
+<span class="cstat-no" title="statement not covered" >  if (sala.status !== 'ativa') <span class="cstat-no" title="statement not covered" >throw new AppError('Esta sala não está aberta para matrículas', 400);</span></span>
 &nbsp;
-        const matriculaExistente = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.buscarMatricula(salaId, usuarioId);</span>
+  const matriculaExistente = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.buscarMatricula(salaId, usuarioId);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >        if (matriculaExistente?.status === "ativo") {</span>
-<span class="cstat-no" title="statement not covered" >            throw new AppError("Você já está matriculado nesta sala", 409);</span>
-        }
-&nbsp;
-<span class="cstat-no" title="statement not covered" >        if (matriculaExistente?.status === "cancelado pelo usuario") {</span>
-<span class="cstat-no" title="statement not covered" >            await this.matriculaRepository.atualizarStatus(salaId, usuarioId, "ativo");</span>
-&nbsp;
-            const matriculaReativada = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.buscarMatricula(salaId, usuarioId);</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >            if (!matriculaReativada || !matriculaReativada.sala) {</span>
-<span class="cstat-no" title="statement not covered" >                throw new AppError("Erro ao reativar matrícula", 500);</span>
-            }
-&nbsp;
-<span class="cstat-no" title="statement not covered" >            return {</span>
-                salaId: matriculaReativada.salaId,
-                usuarioId: matriculaReativada.usuarioId,
-                nomeSala: matriculaReativada.sala.nomeSala,
-                nomeCurso: matriculaReativada.sala.curso.nome,
-                dataMatricula: matriculaReativada.dataMatricula,
-                status: matriculaReativada.status,
-            };
-        }
-&nbsp;
-        const matricula = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.matricular(salaId, usuarioId);</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >        return {</span>
-            salaId: matricula.salaId,
-            usuarioId: matricula.usuarioId,
-            nomeSala: matricula.sala.nomeSala,
-            nomeCurso: matricula.sala.curso.nome,
-            dataMatricula: matricula.dataMatricula,
-            status: matricula.status,
-        };
+<span class="cstat-no" title="statement not covered" >  if (matriculaExistente) {</span>
+<span class="cstat-no" title="statement not covered" >    if (matriculaExistente.status === 'ativo') {</span>
+<span class="cstat-no" title="statement not covered" >      throw new AppError('Você já está matriculado nesta sala', 409);</span>
     }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >    if (matriculaExistente.status === 'concluido') {</span>
+<span class="cstat-no" title="statement not covered" >      throw new AppError('Você já concluiu esta sala e não pode se rematricular', 409);</span>
+    }
+&nbsp;
+    // "cancelado_pelo_usuario" ou "desistente" → reativa
+<span class="cstat-no" title="statement not covered" >    await this.matriculaRepository.atualizarStatus(salaId, usuarioId, 'ativo');</span>
+&nbsp;
+    const matriculaReativada = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.buscarMatricula(salaId, usuarioId);</span>
+<span class="cstat-no" title="statement not covered" >    if (!matriculaReativada || !matriculaReativada.sala) {</span>
+<span class="cstat-no" title="statement not covered" >      throw new AppError('Erro ao reativar matrícula', 500);</span>
+    }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >    return {</span>
+      salaId: matriculaReativada.salaId,
+      usuarioId: matriculaReativada.usuarioId,
+      nomeSala: matriculaReativada.sala.nomeSala,
+      nomeCurso: matriculaReativada.sala.curso.nome,
+      dataMatricula: matriculaReativada.dataMatricula,
+      status: matriculaReativada.status,
+    };
+  }
+&nbsp;
+  const matricula = <span class="cstat-no" title="statement not covered" >await this.matriculaRepository.matricular(salaId, usuarioId);</span>
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  return {</span>
+    salaId: matricula.salaId,
+    usuarioId: matricula.usuarioId,
+    nomeSala: matricula.sala.nomeSala,
+    nomeCurso: matricula.sala.curso.nome,
+    dataMatricula: matricula.dataMatricula,
+    status: matricula.status,
+  };
+}
 &nbsp;
     // ========================
     // CANCELAR MATRÍCULA
@@ -613,7 +625,7 @@ export class MatriculaService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-26T21:08:31.074Z
+                at 2026-06-07T19:43:41.579Z
             </div>
         <script src="../prettify.js"></script>
         <script>

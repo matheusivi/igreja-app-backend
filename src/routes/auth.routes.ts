@@ -13,9 +13,17 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 
 // Rota protegida - retorna dados do usuário logado
-router.get('/me',
+router.patch(
+  '/me',
   authMiddleware.authenticate,
-  authController.getCurrentUser
+  authController.updateMe,
+);
+
+router.patch(
+  '/usuarios/:id/perfil',
+  authMiddleware.authenticate,
+  authMiddleware.requireRole(['Administrador', 'Pastor', 'Líder']),
+  authController.atualizarPerfil,
 );
 
 

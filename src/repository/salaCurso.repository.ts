@@ -95,6 +95,12 @@ export class SalaCursoRepository {
     return prisma.salaCurso.findMany(query);
   }
 
+  async contar(where?: Prisma.SalaCursoWhereInput): Promise<number> {
+  return prisma.salaCurso.count({
+    ...(where !== undefined && { where }),
+  });
+}
+
   /**
    * Atualiza uma sala
    */

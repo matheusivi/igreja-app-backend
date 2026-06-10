@@ -51,7 +51,7 @@ export class CursoController {
       orderBy = "recent",
     } = req.query;
 
-    const cursos = await this.cursoService.list({
+    const resultado = await this.cursoService.list({
       ...(categoria ? { categoria: String(categoria) } : {}),
       ...(busca ? { busca: String(busca) } : {}),
       limit: Number(limit),
@@ -61,8 +61,7 @@ export class CursoController {
 
     res.status(200).json({
       success: true,
-      count: cursos.length,
-      data: cursos,
+      ...resultado,
     });
   };
 

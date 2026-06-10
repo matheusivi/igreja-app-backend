@@ -50,6 +50,7 @@ describe('CursoService', () => {
             atualizar: jest.fn(),
             deletar: jest.fn(),
             buscarParaPermissao: jest.fn(),
+            contarAlunosAtivos: jest.fn().mockResolvedValue(0),
         } as unknown as jest.Mocked<CursoRepository>;
 
         service = new CursoService(mockUsuarioRepository, mockCursoRepository);
@@ -236,34 +237,51 @@ describe('CursoService', () => {
     // ========================
     // DELETE
     // ========================
-    describe('delete', () => {
-        it('deve deletar quando o usuário é o criador', async () => {
-            mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
+  describe('delete', () => {
+    it('deve deletar quando o usuário é o criador', async () => {
+        mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
+        mockCursoRepository.contarAlunosAtivos.mockResolvedValue(0); // sem alunos ativos
 
-            await service.delete(5, 1, 'Usuario');
+        await service.delete(5, 1, 'Usuario');
 
-            expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
-        });
-
-        it('deve deletar quando usuário é Administrador', async () => {
-            mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
-
-            await service.delete(5, 999, 'Administrador');
-            expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
-        });
-
-        it('deve lançar erro de permissão', async () => {
-            mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
-
-            await expect(service.delete(5, 999, 'Usuario'))
-                .rejects.toThrow('Você não tem permissão para excluir este curso.');
-        });
-
-        it('deve lançar erro quando curso não existe', async () => {
-            mockCursoRepository.buscarParaPermissao.mockResolvedValue(null);
-
-            await expect(service.delete(999, 1, 'Usuario'))
-                .rejects.toThrow('Curso não encontrado.');
-        });
+        expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
     });
+
+    it('deve deletar quando usuário é Administrador', async () => {
+        mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
+        mockCursoRepository.contarAlunosAtivos.mockResolvedValue(0);
+
+        await service.delete(5, 999, 'Administrador');
+        expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
+    });
+
+    it('deve lançar erro de permissão', async () => {
+        mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
+
+        await expect(service.delete(5, 999, 'Usuario'))
+            .rejects.toThrow('Você não tem permissão para excluir este curso.');
+
+        expect(mockCursoRepository.deletar).not.toHaveBeenCalled();
+    });
+
+    it('deve lançar erro quando curso não existe', async () => {
+        mockCursoRepository.buscarParaPermissao.mockResolvedValue(null);
+
+        await expect(service.delete(999, 1, 'Usuario'))
+            .rejects.toThrow('Curso não encontrado.');
+
+        expect(mockCursoRepository.deletar).not.toHaveBeenCalled();
+    });
+
+    // novo cenário
+    it('deve lançar erro ao tentar deletar curso com alunos ativos', async () => {
+        mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
+        mockCursoRepository.contarAlunosAtivos.mockResolvedValue(3); // com alunos
+
+        await expect(service.delete(5, 1, 'Usuario'))
+            .rejects.toThrow('Este curso não pode ser excluído pois há alunos com matrículas ativas.');
+
+        expect(mockCursoRepository.deletar).not.toHaveBeenCalled();
+    });
+});
 });

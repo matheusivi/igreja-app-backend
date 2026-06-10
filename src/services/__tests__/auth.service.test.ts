@@ -144,7 +144,7 @@ describe('AuthService', () => {
             expect(jwt.sign).toHaveBeenCalledWith(
                 { id: 42, perfil: 'Usuario' },
                 expect.any(String),
-                { expiresIn: '7d' }
+                { expiresIn: '24h' }
             );
 
             expect(resultado.token).toBe(mockToken);
@@ -236,7 +236,7 @@ describe('AuthService', () => {
             expect(jwt.sign).toHaveBeenCalledWith(
                 expect.objectContaining({ id: 42, perfil: 'Usuario' }),
                 expect.any(String),
-                { expiresIn: '7d' }
+                { expiresIn: '24h' }
             );
         });
     });

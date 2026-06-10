@@ -1,19 +1,22 @@
 // Módulo de conexão com o banco de dados usando Prisma v7 + Driver Adapter
 // O import abaixo garante que as variáveis do .env estejam carregadas
 // ANTES de criar o pool de conexões (necessário em projetos ESM)
-import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+// src/lib/prisma.ts
+import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient } from '@prisma/client';
+import pg from 'pg';
+import { env } from '../config/env';
 
-// Cria o pool de conexões com o PostgreSQL
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+};
 
-// Cria o adapter do Prisma para PostgreSQL
+const pool = new pg.Pool({ connectionString: env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 
-// Instancia o PrismaClient com o adapter (obrigatório no Prisma v7)
-export const prisma = new PrismaClient({ adapter });
-    
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}

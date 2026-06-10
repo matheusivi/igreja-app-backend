@@ -5,6 +5,7 @@ import type {
   CursoResponse,
   ListCursosQuery,
   CursoComCriadorSimples,
+  ListarCursosResponse,
 } from "../dtos/curso.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { CursoRepository } from "../repository/curso.repository";
@@ -53,83 +54,96 @@ export class CursoService {
     return this.formatarResponse(curso);
   }
 
-  public async list(filters: ListCursosQuery = {}): Promise<CursoResponse[]> {
-    const {
-      categoria,
-      busca,
-      limit = 20,
-      page = 1,
-      orderBy = "recent",
-    } = filters;
+public async list(filters: ListCursosQuery = {}): Promise<ListarCursosResponse> {
+  const {
+    categoria,
+    busca,
+    limit = 20,
+    page = 1,
+    orderBy = 'recent',
+  } = filters;
 
-    const skip = (page - 1) * limit;
+  const skip = (page - 1) * limit;
 
-    const cursos = await this.cursoRepository.listar({
-      where: {
-        ...(categoria && { categoria }),
-        ...(busca && {
-          nome: { contains: busca, mode: "insensitive" },
-        }),
-      },
-      orderBy: {
-        id: orderBy === "oldest" ? "asc" : "desc",
-      },
+  const whereClause: Prisma.CursoWhereInput = {
+    ...(categoria && { categoria }),
+    ...(busca && {
+      nome: { contains: busca, mode: 'insensitive' },
+    }),
+  };
+
+  const [itens, total] = await Promise.all([
+    this.cursoRepository.listar({
+      where: whereClause,
+      orderBy: { id: orderBy === 'oldest' ? 'asc' : 'desc' },
       take: limit,
       skip,
-    });
+    }),
+    this.cursoRepository.contar(whereClause),
+  ]);
 
-    return cursos.map((curso) => this.formatarResponse(curso));
+  return {
+    data: itens.map((item) => this.formatarResponse(item)),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+ public async update(
+  cursoId: number,
+  data: UpdateCursoDTO,
+  usuarioId: number,
+  perfil: string,
+): Promise<CursoResponse> {
+  const cursoExistente = await this.cursoRepository.buscarPorId(cursoId);
+  if (!cursoExistente) throw new AppError('Curso não encontrado.', 404);
+
+  const podeAtualizar =
+    perfil === Perfis.ADMINISTRADOR ||
+    perfil === Perfis.PASTOR ||
+    cursoExistente.criadorUsuarioId === usuarioId;
+
+  if (!podeAtualizar) {
+    throw new AppError('Você não tem permissão para atualizar este curso.', 403);
   }
 
-  public async update(
-    cursoId: number,
-    data: UpdateCursoDTO,
-    usuarioId: number,
-    perfil: string,
-  ): Promise<CursoResponse> {
-    const cursoExistente = await this.cursoRepository.buscarPorId(cursoId);
+  const updateData: Prisma.CursoUpdateInput = {};
+  if (data.nome !== undefined) updateData.nome = data.nome;
+  if (data.descricaoMaterial !== undefined) updateData.descricaoMaterial = data.descricaoMaterial;
+  if (data.categoria !== undefined) updateData.categoria = data.categoria;
 
-    if (!cursoExistente) {
-      throw new AppError("Curso não encontrado.", 404);
-    }
+  const cursoAtualizado = await this.cursoRepository.atualizar(cursoId, updateData);
+  return this.formatarResponse(cursoAtualizado);
+}
 
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      cursoExistente.criadorUsuarioId !== usuarioId
-    ) {
-      throw new AppError("Você não tem permissão para atualizar este curso.", 403);
-    }
+public async delete(
+  cursoId: number,
+  usuarioId: number,
+  perfil: string,
+): Promise<void> {
+  const cursoExistente = await this.cursoRepository.buscarParaPermissao(cursoId);
+  if (!cursoExistente) throw new AppError('Curso não encontrado.', 404);
 
-    const updateData: Prisma.CursoUpdateInput = {};
+  const podeExcluir =
+    perfil === Perfis.ADMINISTRADOR ||
+    perfil === Perfis.PASTOR ||
+    cursoExistente.criadorUsuarioId === usuarioId;
 
-    if (data.nome !== undefined) updateData.nome = data.nome;
-    if (data.descricaoMaterial !== undefined) updateData.descricaoMaterial = data.descricaoMaterial;
-    if (data.categoria !== undefined) updateData.categoria = data.categoria;
-
-    const cursoAtualizado = await this.cursoRepository.atualizar(cursoId, updateData);
-
-    return this.formatarResponse(cursoAtualizado);
+  if (!podeExcluir) {
+    throw new AppError('Você não tem permissão para excluir este curso.', 403);
   }
 
-  public async delete(
-    cursoId: number,
-    usuarioId: number,
-    perfil: string,
-  ): Promise<void> {
-    const cursoExistente = await this.cursoRepository.buscarParaPermissao(cursoId);
-
-    if (!cursoExistente) {
-      throw new AppError("Curso não encontrado.", 404);
-    }
-
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      cursoExistente.criadorUsuarioId !== usuarioId
-    ) {
-      throw new AppError("Você não tem permissão para excluir este curso.", 403);
-    }
-    await this.cursoRepository.deletar(cursoId);
+  const alunosAtivos = await this.cursoRepository.contarAlunosAtivos(cursoId);
+  if (alunosAtivos > 0) {
+    throw new AppError(
+      'Este curso não pode ser excluído pois há alunos com matrículas ativas. Encerre as salas antes de excluir.',
+      409,
+    );
   }
+
+  await this.cursoRepository.deletar(cursoId);
+}
 
   private formatarResponse(curso: CursoComCriadorSimples): CursoResponse {
     return {

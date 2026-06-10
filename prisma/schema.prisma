@@ -15,7 +15,8 @@ model Usuario {
   dataNascimento    DateTime?
   exibirAniversario Boolean  @default(true)
   estadoCivil       String?
-  fotoUrl           String?
+  fotoUrl           String?  
+  sexo              String // "Masculino", "Feminino"
   profissao         String?
 
   conteudos         Conteudo[]
@@ -24,6 +25,9 @@ model Usuario {
   participacoesSalas UsuarioSala[]
   pedidosOracao     PedidoOracao[]
   // leiturasDiarias   LeituraDiaria[]
+  gruposFamiliares  MembroFamilia[] @relation("MembroDoGrupo")
+  convitesEnviados  MembroFamilia[] @relation("ConvitesEnviados")
+  gruposCriados     GrupoFamiliar[]  @relation("CriadorGrupo")
 
   @@map("usuarios")
 }
@@ -110,4 +114,31 @@ model UsuarioSala {
 
   @@id([salaId, usuarioId])
   @@map("usuarios_salas")
+}
+
+model GrupoFamiliar {
+  id    Int     @id @default(autoincrement())
+  nome  String?
+  criadorUsuarioId Int  
+
+  criador Usuario       @relation("CriadorGrupo", fields: [criadorUsuarioId], references: [id])
+  membros MembroFamilia[]
+
+  @@map("grupos_familiares")
+}
+
+model MembroFamilia {
+  id              Int     @id @default(autoincrement())
+  usuarioId       Int
+  grupoFamiliarId Int
+  parentesco      String? // "Pai", "Mãe", "Filho", "Cônjuge", "Tio", "Primo", etc.
+  status          String  @default("pendente") // "pendente", "aceito", "recusado"
+  convidadoPorId  Int
+
+  usuario       Usuario       @relation("MembroDoGrupo", fields: [usuarioId], references: [id], onDelete: Cascade)
+  grupoFamiliar GrupoFamiliar @relation(fields: [grupoFamiliarId], references: [id], onDelete: Cascade)
+  convidadoPor  Usuario       @relation("ConvitesEnviados", fields: [convidadoPorId], references: [id])
+
+  @@unique([usuarioId, grupoFamiliarId])
+  @@map("membros_familia")
 }

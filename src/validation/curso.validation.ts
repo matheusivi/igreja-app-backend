@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const CategoriasCurso = ['Homens', 'Mulheres', 'Casais', 'Jovens', 'Geral'] as const;
+
 export const CreateCursoSchema = z.object({
   nome: z.string()
     .min(3, 'O nome do curso deve ter pelo menos 3 caracteres')
@@ -12,10 +14,9 @@ export const CreateCursoSchema = z.object({
     .nullable()
     .transform(val => val ? val.trim() : val),
 
-  categoria: z.string()
-    .min(2, "A categoria é obrigatória")
-    .max(50, "A categoria não pode ter mais de 50 caracteres")
-    .trim(),
+  categoria: z.enum(CategoriasCurso, {
+    error: 'Categoria inválida. Use: Homens, Mulheres, Casais, Jovens ou Geral',
+  }),
 });
 
 export const CreateSalaSchema = z.object({
@@ -33,7 +34,19 @@ export const CreateSalaSchema = z.object({
 
   dataFim: z.iso.date({ message: "Data de fim inválida" })
     .optional(),
-});
+
+}).refine(
+  (data) => {
+    if (data.dataInicio && data.dataFim) {
+      return new Date(data.dataInicio) <= new Date(data.dataFim);
+    }
+    return true;
+  },
+  {
+    message: 'A data de término não pode ser anterior à data de início',
+    path: ['dataFim'],
+  }
+);
 
 export const UpdateCursoSchema = z.object({
   nome: z.string()
@@ -48,11 +61,9 @@ export const UpdateCursoSchema = z.object({
     .nullable()
     .transform(val => val ? val.trim() : val),
 
-  categoria: z.string()
-    .min(2, "A categoria é obrigatória")
-    .max(50, "A categoria não pode ter mais de 50 caracteres")
-    .trim()
-    .optional(),
+  categoria: z.enum(CategoriasCurso, {
+    error: 'Categoria inválida. Use: Homens, Mulheres, Casais, Jovens ou Geral',
+  }).optional(),
 });
 
 export type CreateCursoInput = z.infer<typeof CreateCursoSchema>;
@@ -67,11 +78,24 @@ export const UpdateSalaSchema = z.object({
     .optional(),
 
   dataInicio: z.string().optional(),
-  
   dataFim: z.string().optional(),
 
-  status: z.enum(['ativa', 'inativa', 'concluída']).optional()
-});
+  status: z.enum(['ativa', 'inativa', 'concluída'], {
+    error: 'Status inválido. Use: ativa, inativa ou concluída',
+  }).optional(),
+
+}).refine(
+  (data) => {
+    if (data.dataInicio && data.dataFim) {
+      return new Date(data.dataInicio) <= new Date(data.dataFim);
+    }
+    return true;
+  },
+  {
+    message: 'A data de término não pode ser anterior à data de início',
+    path: ['dataFim'],
+  }
+);
 
 export type UpdateSalaInput = z.infer<typeof UpdateSalaSchema>;
 
@@ -83,7 +107,6 @@ export const ListSalasQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   page: z.coerce.number().int().min(1).default(1),
   cursoId: z.coerce.number().int().positive().optional(),
-  status: z.string().optional(),
   busca: z.string().optional(),
   cursoNome: z.string().optional(),
   liderNome: z.string().optional(),

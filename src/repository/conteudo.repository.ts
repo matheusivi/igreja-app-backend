@@ -79,6 +79,12 @@ export class ConteudoRepository {
     });
   }
 
+  async contar(where?: Prisma.ConteudoWhereInput): Promise<number> {
+  return prisma.conteudo.count({
+    ...(where !== undefined && { where }),
+  });
+}
+
   /**
    * Deleta um conteúdo por ID
    */

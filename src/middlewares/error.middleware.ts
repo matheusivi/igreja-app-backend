@@ -2,6 +2,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError';
 import { ZodError } from 'zod';
+import { Prisma } from '@prisma/client';
 
 export const errorHandler = (
     err: any,
@@ -32,7 +33,16 @@ export const errorHandler = (
         });
         return;
     }
-
+    // Erros de conexão com o banco de dados
+    else if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2002') {
+            statusCode = 409;
+            message = 'Registro duplicado. Este dado já existe.';
+        } else if (err.code === 'P2025') {
+            statusCode = 404;
+            message = 'Registro não encontrado.';
+        }
+    }
     // Log detalhado apenas em desenvolvimento
     if (process.env.NODE_ENV === 'development') {
         console.error(`[${new Date().toISOString()}] Erro não tratado:`, err);

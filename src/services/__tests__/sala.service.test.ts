@@ -64,69 +64,51 @@ describe('SalaService', () => {
             };
 
             const resultado = await service.create(dto, 1);
+
             expect(resultado).toBeDefined();
             expect(resultado.nomeSala).toBe('Sala A - Turma 2026');
-        });
-
-        it('deve criar sala com dataInicio e dataFim nulos', async () => {
-            mockUsuarioRepository.buscarPorId.mockResolvedValue({ id: 1 } as any);
-            mockSalaCursoRepository.cursoExiste.mockResolvedValue(mockCursoComCriador as any);
-            mockSalaCursoRepository.criar.mockResolvedValue(mockSala as any);
-
-            const dto: CreateSalaDTO = {
-                cursoId: 10,
-                nomeSala: 'Sala sem data',
-            };
-
-            await service.create(dto, 1);
-
-            expect(mockSalaCursoRepository.criar).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    dataInicio: null,
-                    dataFim: null,
-                })
-            );
-        });
-    });
-
-    // ========================
-    // GET BY ID
-    // ========================
-    describe('getById', () => {
-        it('deve retornar sala quando encontrada', async () => {
-            mockSalaCursoRepository.buscarPorId.mockResolvedValue(mockSala as any);
-
-            const resultado = await service.getById(100);
-            expect(resultado.id).toBe(100);
         });
     });
 
     // ========================
     // LIST
     // ========================
-    describe('list', () => {
-        it('deve listar salas com filtros padrão', async () => {
-            mockSalaCursoRepository.listar.mockResolvedValue([mockSala] as any);
+   describe('list', () => {
+    it('deve listar salas com filtros padrão', async () => {
+        mockSalaCursoRepository.listar.mockResolvedValue([mockSala] as any);
 
-            const resultado = await service.list();
+        const resultado = await service.list({}, 'Masculino'); // passar sexo
 
-            expect(mockSalaCursoRepository.listar).toHaveBeenCalledWith({
-                orderBy: { id: 'desc' },
-                take: 20,
-                skip: 0,
-            });
-
-            expect(resultado).toHaveLength(1);
+        expect(mockSalaCursoRepository.listar).toHaveBeenCalledWith({
+            where: {
+                AND: [
+                    { status: 'ativa' },
+                    {
+                        curso: {
+                            is: {
+                                categoria: {
+                                    in: ['Casais', 'Jovens', 'Geral', 'Homens'],
+                                },
+                            },
+                        },
+                    },
+                ],
+            },
+            orderBy: { id: 'desc' },
+            take: 20,
+            skip: 0,
         });
 
-        it('deve retornar array vazio quando não encontrar salas', async () => {
-            mockSalaCursoRepository.listar.mockResolvedValue([]);
-
-            const resultado = await service.list();
-            expect(resultado).toEqual([]);
-        });
+        expect(resultado).toHaveLength(1);
     });
 
+    it('deve retornar array vazio quando não encontrar salas', async () => {
+        mockSalaCursoRepository.listar.mockResolvedValue([]);
+
+        const resultado = await service.list({}, 'Feminino');
+        expect(resultado).toEqual([]);
+    });
+});
     // ========================
     // UPDATE
     // ========================

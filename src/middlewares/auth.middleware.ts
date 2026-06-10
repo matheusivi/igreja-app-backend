@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
     user?: {
         id: number;
         perfil: string;
+        sexo: string;
     };
 }
 
@@ -50,6 +51,7 @@ export class AuthMiddleware {
             req.user = {
                 id: decoded.id,
                 perfil: decoded.perfil,
+                sexo: decoded.sexo,
             };
 
             next();

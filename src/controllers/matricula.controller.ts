@@ -1,107 +1,129 @@
 // src/controllers/matricula.controller.ts
 
-import type { Response } from 'express';
-import type { AuthRequest } from '../middlewares/auth.middleware';
-import { MatriculaService } from '../services/matricula.services';
-import { AppError } from '../utils/AppError';
+import type { Response } from "express";
+import type { AuthRequest } from "../middlewares/auth.middleware";
+import { MatriculaService } from "../services/matricula.services";
+import { AppError } from "../utils/AppError";
 import {
-    SalaIdParamSchema,
-    UsuarioIdParamSchema,
-    AtualizarStatusSchema,
-} from '../validation/matricula.validation';
+  SalaIdParamSchema,
+  UsuarioIdParamSchema,
+  AtualizarStatusSchema,
+} from "../validation/matricula.validation";
 
 export class MatriculaController {
-    private matriculaService: MatriculaService;
+  private matriculaService: MatriculaService;
 
-    constructor() {
-        this.matriculaService = new MatriculaService();
-    }
+  constructor() {
+    this.matriculaService = new MatriculaService();
+  }
 
-    public matricular = async (req: AuthRequest, res: Response): Promise<void> => {
-        const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
-        const usuarioId = req.user!.id;
+  public matricular = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const usuarioId = req.user!.id;
 
-        const matricula = await this.matriculaService.matricular(salaId, usuarioId);
+    const matricula = await this.matriculaService.matricular(salaId, usuarioId);
 
-        res.status(201).json({
-            success: true,
-            message: 'Matrícula realizada com sucesso!',
-            data: matricula,
-        });
-    };
+    res.status(201).json({
+      success: true,
+      message: "Matrícula realizada com sucesso!",
+      data: matricula,
+    });
+  };
 
-    public cancelar = async (req: AuthRequest, res: Response): Promise<void> => {
-        const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
-        const usuarioId = req.user!.id;
+  public cancelar = async (req: AuthRequest, res: Response): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const usuarioId = req.user!.id;
 
-        await this.matriculaService.cancelarMatricula(salaId, usuarioId);
+    await this.matriculaService.cancelarMatricula(salaId, usuarioId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Matrícula cancelada com sucesso.',
-        });
-    };
+    res.status(200).json({
+      success: true,
+      message: "Matrícula cancelada com sucesso.",
+    });
+  };
 
-    public listarParticipantes = async (req: AuthRequest, res: Response): Promise<void> => {
-        const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+  public listarParticipantes = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
 
-        const participantes = await this.matriculaService.listarParticipantes(
-            salaId,
-        );
+    const resultado = await this.matriculaService.listarParticipantes(
+      salaId,
+      page,
+      limit,
+    );
 
-        res.status(200).json({
-            success: true,
-            count: participantes.length,
-            data: participantes,
-        });
-    };
+    res.status(200).json({
+      success: true,
+      ...resultado,
+    });
+  };
+  public removerParticipante = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const usuarioId = UsuarioIdParamSchema.parse(Number(req.params.usuarioId));
 
-    public removerParticipante = async (req: AuthRequest, res: Response): Promise<void> => {
-        const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
-        const usuarioId = UsuarioIdParamSchema.parse(Number(req.params.usuarioId));
+    await this.matriculaService.removerParticipante(
+      salaId,
+      usuarioId,
+      req.user!.id,
+      req.user!.perfil,
+    );
 
-        await this.matriculaService.removerParticipante(
-            salaId,
-            usuarioId,
-            req.user!.id,
-            req.user!.perfil
-        );
+    res.status(200).json({
+      success: true,
+      message: "Participante removido da sala com sucesso.",
+    });
+  };
 
-        res.status(200).json({
-            success: true,
-            message: 'Participante removido da sala com sucesso.',
-        });
-    };
+  public atualizarStatusParticipante = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const usuarioId = UsuarioIdParamSchema.parse(Number(req.params.usuarioId));
 
-    public atualizarStatusParticipante = async (req: AuthRequest, res: Response): Promise<void> => {
-        const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
-        const usuarioId = UsuarioIdParamSchema.parse(Number(req.params.usuarioId));
+    const { status } = AtualizarStatusSchema.parse(req.body);
 
-        const { status } = AtualizarStatusSchema.parse(req.body);
+    await this.matriculaService.atualizarStatusParticipante(
+      salaId,
+      usuarioId,
+      status,
+      req.user!.id,
+      req.user!.perfil,
+    );
 
-        await this.matriculaService.atualizarStatusParticipante(
-            salaId,
-            usuarioId,
-            status,
-            req.user!.id,
-            req.user!.perfil
-        );
+    res.status(200).json({
+      success: true,
+      message: `Participante marcado como '${status}' com sucesso.`,
+    });
+  };
 
-        res.status(200).json({
-            success: true,
-            message: `Participante marcado como '${status}' com sucesso.`,
-        });
-    };
+  public meuHistorico = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const usuarioId = req.user!.id;
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
 
-    public meuHistorico = async (req: AuthRequest, res: Response): Promise<void> => {
-        const usuarioId = req.user!.id;
+    const resultado = await this.matriculaService.buscarHistorico(
+      usuarioId,
+      page,
+      limit,
+    );
 
-        const historico = await this.matriculaService.buscarHistorico(usuarioId);
-
-        res.status(200).json({
-            success: true,
-            count: historico.length,
-            data: historico,
-        });
-    };
+    res.status(200).json({
+      success: true,
+      ...resultado,
+    });
+  };
 }

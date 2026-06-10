@@ -45,7 +45,7 @@ export class ConteudoController {
   public list = async (req: AuthRequest, res: Response): Promise<void> => {
     const { tipo, busca, limit, page, orderBy } = req.query;
 
-    const conteudos = await this.conteudoService.list({
+    const resultado = await this.conteudoService.list({
       tipo: tipo as string | undefined,
       busca: busca as string | undefined,
       limit: limit ? Number(limit) : undefined,
@@ -54,10 +54,9 @@ export class ConteudoController {
     });
 
     res.status(200).json({
-      success: true,
-      count: conteudos.length,
-      data: conteudos,
-    });
+    success: true,
+    ...resultado,
+  });
   };
 
   public update = async (req: AuthRequest, res: Response): Promise<void> => {

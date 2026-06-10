@@ -1,4 +1,5 @@
 export const Perfis = {
+    VISITANTE: 'VISITANTE',
     MEMBRO: 'Membro',
     LIDER: 'Líder',
     PASTOR: 'Pastor',

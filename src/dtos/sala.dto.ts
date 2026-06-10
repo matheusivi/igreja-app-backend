@@ -4,15 +4,15 @@ import { Prisma } from "@prisma/client";
 export interface CreateSalaDTO {
   cursoId: number;
   nomeSala: string;
-  dataInicio?: string;      // formato "YYYY-MM-DD"
-  dataFim?: string;         // formato "YYYY-MM-DD"
+  dataInicio?: string; // formato "YYYY-MM-DD"
+  dataFim?: string; // formato "YYYY-MM-DD"
 }
 
 export interface UpdateSalaDTO {
   nomeSala?: string;
   dataInicio?: string;
   dataFim?: string;
-  status?: 'ativa' | 'inativa' | 'concluída';
+  status?: "ativa" | "inativa" | "concluída";
 }
 
 export interface SalaResponse {
@@ -20,7 +20,7 @@ export interface SalaResponse {
   nomeSala: string;
   dataInicio: Date | null;
   dataFim: Date | null;
-  status: string;           // "ativa" | "inativa" | "concluída"
+  status: string; // "ativa" | "inativa" | "concluída"
   curso: {
     id: number;
     nome: string;
@@ -35,8 +35,8 @@ export interface ListSalasQuery {
   limit?: number | undefined;
   page?: number | undefined;
   busca?: string | undefined;
-  cursoNome?: string | undefined;    // busca pelo nome do curso
-  liderNome?: string | undefined;    // busca pelo nome do criador do curso
+  cursoNome?: string | undefined; // busca pelo nome do curso
+  liderNome?: string | undefined; // busca pelo nome do criador do curso
 }
 
 export type SalaComCursoSimples = {
@@ -45,8 +45,16 @@ export type SalaComCursoSimples = {
   dataInicio: Date | null;
   dataFim: Date | null;
   status: string;
-  curso?: {           // ← Tornei opcional com '?'
+  curso?: {
+    // ← Tornei opcional com '?'
     id: number;
     nome: string;
   } | null;
 };
+
+export interface ListarSalasResponse {
+  data: SalaResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}

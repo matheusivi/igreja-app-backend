@@ -31,7 +31,7 @@ export class SalaController {
 
     const sala = await this.salaService.create(
       validatedData as CreateSalaDTO,
-      usuarioId
+      usuarioId,
     );
 
     res.status(201).json({
@@ -56,30 +56,24 @@ export class SalaController {
   };
 
   public list = async (req: AuthRequest, res: Response): Promise<void> => {
-    const {
-      cursoId,
-      status,
-      limit = 20,
-      page = 1,
-      busca,
-      cursoNome,
-      liderNome,
-    } = req.query;
+    const { cursoId, busca, limit, page, cursoNome, liderNome } = req.query;
+    const sexoUsuario = req.user!.sexo;
 
-    const salas = await this.salaService.list({
-      cursoId: cursoId ? Number(cursoId) : undefined,
-      status: status as string | undefined,
-      busca: busca as string | undefined,
-      cursoNome: cursoNome as string | undefined,
-      liderNome: liderNome as string | undefined,
-      limit: Number(limit),
-      page: Number(page),
-    });
+    const resultado = await this.salaService.list(
+      {
+        ...(cursoId ? { cursoId: Number(cursoId) } : {}),
+        ...(busca ? { busca: String(busca) } : {}),
+        ...(cursoNome ? { cursoNome: String(cursoNome) } : {}),
+        ...(liderNome ? { liderNome: String(liderNome) } : {}),
+        ...(limit ? { limit: Number(limit) } : {}),
+        ...(page ? { page: Number(page) } : {}),
+      },
+      sexoUsuario,
+    );
 
     res.status(200).json({
       success: true,
-      count: salas.length,
-      data: salas,
+      ...resultado,
     });
   };
 
@@ -97,7 +91,7 @@ export class SalaController {
       salaId,
       validatedData as UpdateSalaDTO,
       usuarioId,
-      perfil
+      perfil,
     );
 
     res.status(200).json({

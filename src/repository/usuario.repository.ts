@@ -18,6 +18,7 @@ export class UsuarioRepository {
         email: data.email,
         senha: data.senhaHash,
         perfil: "Membro",
+        sexo: data.sexo,
         dataNascimento: data.dataNascimento
           ? new Date(data.dataNascimento)
           : null,
@@ -49,6 +50,7 @@ export class UsuarioRepository {
         nomeCompleto: true,
         email: true,
         perfil: true,
+        sexo: true,
         dataNascimento: true,
         exibirAniversario: true,
         estadoCivil: true,
@@ -67,4 +69,37 @@ export class UsuarioRepository {
       data: { perfil: novoPerfil },
     });
   }
+
+  async atualizarDados(id: number, data: {
+  nomeCompleto?: string | undefined;
+  dataNascimento?: string | undefined;
+  estadoCivil?: string | undefined;
+  profissao?: string | undefined;
+  exibirAniversario?: boolean | undefined;
+  fotoUrl?: string | undefined;
+}) {
+  return this.prisma.usuario.update({
+    where: { id },
+    data: {
+      ...(data.nomeCompleto !== undefined && { nomeCompleto: data.nomeCompleto }),
+      ...(data.dataNascimento !== undefined && { dataNascimento: new Date(data.dataNascimento) }),
+      ...(data.estadoCivil !== undefined && { estadoCivil: data.estadoCivil }),
+      ...(data.profissao !== undefined && { profissao: data.profissao }),
+      ...(data.exibirAniversario !== undefined && { exibirAniversario: data.exibirAniversario }),
+      ...(data.fotoUrl !== undefined && { fotoUrl: data.fotoUrl }),
+    },
+    select: {
+      id: true,
+      nomeCompleto: true,
+      email: true,
+      perfil: true,
+      sexo: true,
+      dataNascimento: true,
+      exibirAniversario: true,
+      estadoCivil: true,
+      fotoUrl: true,
+      profissao: true,
+    },
+  });
+}
 }

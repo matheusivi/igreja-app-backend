@@ -65,3 +65,12 @@ export type ConteudoComUsuarioSimples = {
     perfil: string;
   } | null;
 };
+
+
+export interface ListarConteudosResponse {
+  data: ConteudoResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+

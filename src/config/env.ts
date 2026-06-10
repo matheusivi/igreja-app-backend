@@ -8,6 +8,7 @@ const envSchema = z.object({
     PORT: z.string().default('3000'),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     ALLOWED_ORIGINS: z.string().optional(),
+    PAYLOAD_SIZE: z.string().default('100kb'),
 });
 
 export const env = envSchema.parse(process.env);

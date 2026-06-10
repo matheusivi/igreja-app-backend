@@ -21,12 +21,12 @@ export interface ParticipanteSalaResponse {
   nomeCompleto: string;
   perfil: string;
   dataMatricula: Date;
-  status: 'ativo' | 'concluido' | 'desistente' | 'cancelado_pelo_usuario';
+  status: "ativo" | "concluido" | "desistente" | "cancelado_pelo_usuario";
 }
 
 // ====================== ATUALIZAR STATUS (Líder) ======================
 export interface AtualizarStatusParticipanteDTO {
-  status: 'concluido' | 'desistente';
+  status: "concluido" | "desistente";
 }
 
 // ====================== HISTÓRICO DO USUÁRIO ======================
@@ -34,15 +34,29 @@ export interface HistoricoCursoResponse {
   cursoId: number;
   nomeCurso: string;
   categoria: string;
-  status: string;           // "em andamento" | "concluído"
+  status: string; // "em andamento" | "concluído"
   dataAdicao: Date;
-  nomeSala?: string;        // opcional, caso queira mostrar a sala específica
+  nomeSala?: string; // opcional, caso queira mostrar a sala específica
   dataMatricula?: Date;
 }
 
 // ====================== TIPOS AUXILIARES ======================
 export type StatusMatricula =
-  | 'ativo'
-  | 'concluido'
-  | 'desistente'
-  | 'cancelado_pelo_usuario';
+  | "ativo"
+  | "concluido"
+  | "desistente"
+  | "cancelado_pelo_usuario";
+
+export interface ListarParticipantesResponse {
+  data: ParticipanteSalaResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface ListarHistoricoResponse {
+  data: HistoricoCursoResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}

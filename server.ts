@@ -4,17 +4,21 @@ import express from 'express';
 import cors from 'cors';
 import { env } from './src/config/env';
 import { authLimiter, generalLimiter } from './src/middlewares/rateLimiter';
+import helmet from 'helmet';
 
 import { authRoutes } from './src/routes/auth.routes';
 import { conteudoRoutes } from './src/routes/conteudo.routes';
 import { cursoRoutes } from './src/routes/curso.routes';
 import { salaRoutes } from './src/routes/sala.routes';
 import { matriculaRoutes } from './src/routes/matricula.routes';
+import { pedidoOracaoRoutes } from './src/routes/pedidoOracao.routes';
+import { grupoFamiliarRoutes } from './src/routes/grupoFamiliar.routes';
 
 import { errorHandler } from './src/middlewares/error.middleware';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = env.PORT || 3000;
+app.use(helmet())
 
 // ======================
 // Middlewares Globais
@@ -27,8 +31,8 @@ app.use(cors({
 }));
 
 app.use(generalLimiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: env.PAYLOAD_SIZE }));
+app.use(express.urlencoded({ limit: env.PAYLOAD_SIZE, extended: true }));
 
 // ======================
 // Rotas da API
@@ -42,6 +46,8 @@ app.use('/api/conteudos', conteudoRoutes);
 app.use('/api/cursos', cursoRoutes);
 app.use('/api/salas', salaRoutes);
 app.use('/api/matriculas', matriculaRoutes);
+app.use('/api/pedido-oracao', pedidoOracaoRoutes);
+app.use('/api/familias', grupoFamiliarRoutes);
 
 // ======================
 // Rotas Básicas

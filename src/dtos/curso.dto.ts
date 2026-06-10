@@ -46,3 +46,10 @@ export type CursoComCriadorSimples = {
     perfil: string;
   } | null;
 };
+
+export interface ListarCursosResponse {
+  data: CursoResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}

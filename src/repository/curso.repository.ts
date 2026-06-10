@@ -1,8 +1,6 @@
-// src/repository/curso.repository.ts
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 
-// Select padrão para incluir dados do criador
 const includeCriador = {
   criador: {
     select: {
@@ -14,9 +12,6 @@ const includeCriador = {
 } satisfies Prisma.CursoInclude;
 
 export class CursoRepository {
-  /**
-   * Cria um novo curso
-   */
   async criar(data: Prisma.CursoCreateInput) {
     return prisma.curso.create({
       data,
@@ -24,9 +19,6 @@ export class CursoRepository {
     });
   }
 
-  /**
-   * Busca um curso por ID com dados do criador
-   */
   async buscarPorId(id: number) {
     return prisma.curso.findUnique({
       where: { id },
@@ -34,9 +26,6 @@ export class CursoRepository {
     });
   }
 
-  /**
-   * Busca apenas dados necessários para permissão
-   */
   async buscarParaPermissao(id: number) {
     return prisma.curso.findUnique({
       where: { id },
@@ -47,9 +36,16 @@ export class CursoRepository {
     });
   }
 
-  /**
-   * Lista cursos com filtros tipados
-   */
+  // novo método
+  async contarAlunosAtivos(cursoId: number): Promise<number> {
+    return prisma.usuarioSala.count({
+      where: {
+        sala: { cursoId },
+        status: 'ativo',
+      },
+    });
+  }
+
   async listar(params: {
     where?: Prisma.CursoWhereInput;
     orderBy?: Prisma.CursoOrderByWithRelationInput;
@@ -68,9 +64,6 @@ export class CursoRepository {
     return prisma.curso.findMany(query);
   }
 
-  /**
-   * Atualiza um curso
-   */
   async atualizar(id: number, data: Prisma.CursoUpdateInput) {
     return prisma.curso.update({
       where: { id },
@@ -79,9 +72,12 @@ export class CursoRepository {
     });
   }
 
-  /**
-   * Deleta um curso por ID
-   */
+  async contar(where?: Prisma.CursoWhereInput): Promise<number> {
+  return prisma.curso.count({
+    ...(where !== undefined && { where }),
+  });
+}
+
   async deletar(id: number) {
     return prisma.curso.delete({
       where: { id },

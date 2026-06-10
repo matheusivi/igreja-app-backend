@@ -5,6 +5,7 @@ import type {
   ConteudoResponse,
   ListarConteudosDTO,
   ConteudoComUsuarioSimples,
+  ListarConteudosResponse,
 } from "../dtos/conteudo.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { ConteudoRepository } from "../repository/conteudo.repository";
@@ -60,7 +61,7 @@ export class ConteudoService {
 
   public async list(
     filters: ListarConteudosDTO = {},
-  ): Promise<ConteudoResponse[]> {
+  ): Promise<ListarConteudosResponse> {
     const { tipo, limit = 20, busca, orderBy = "recent", page = 1 } = filters;
 
     const skip = (page - 1) * limit;
@@ -71,16 +72,22 @@ export class ConteudoService {
       whereClause.titulo = { contains: busca, mode: "insensitive" };
     }
 
-    const conteudos = await this.conteudoRepository.listar({
+     const [conteudos, total] = await Promise.all([
+    this.conteudoRepository.listar({
       where: whereClause,
-      orderBy: {
-        dataPublicacao: orderBy === "recent" ? "desc" : "asc",
-      },
+      orderBy: { dataPublicacao: orderBy === 'recent' ? 'desc' : 'asc' },
       take: limit,
       skip,
-    });
+    }),
+    this.conteudoRepository.contar(whereClause),
+  ]);
 
-    return conteudos.map((conteudo) => this.formatarResponse(conteudo));
+    return {
+    data: conteudos.map((conteudo) => this.formatarResponse(conteudo)),
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
   }
 
   public async update(
@@ -95,12 +102,12 @@ export class ConteudoService {
       throw new AppError("Conteúdo não encontrado.", 404);
     }
 
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      conteudoExistente.usuarioId !== usuarioId
-    ) {
+    const podeAtualizar = conteudoExistente.usuarioId === usuarioId || perfil === Perfis.ADMINISTRADOR || perfil === Perfis.PASTOR;
+
+    if (!podeAtualizar) {
       throw new AppError("Você não tem permissão para atualizar este conteúdo.", 403);
     }
+
     const updateData: Prisma.ConteudoUpdateInput = {};
 
     if (data.tipo !== undefined) updateData.tipo = data.tipo;
@@ -135,10 +142,9 @@ export class ConteudoService {
       throw new AppError("Conteúdo não encontrado.", 404);
     }
 
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      conteudoExistente.usuarioId !== usuarioId
-    ) {
+    const podeDeletar = conteudoExistente.usuarioId === usuarioId || perfil === Perfis.ADMINISTRADOR || perfil === Perfis.PASTOR;
+
+    if (!podeDeletar) {
       throw new AppError("Você não tem permissão para excluir este conteúdo.", 403);
     }
 
