@@ -68,6 +68,17 @@ export class MatriculaService {
     if (sala.status !== "ativa")
       throw new AppError("Esta sala não está aberta para matrículas", 400);
 
+    if (sala.curso.categoria === "Batismo") {
+      const jaPossuiBatismoAtivo =
+        await this.matriculaRepository.buscarMatriculaBatismoAtiva(usuarioId);
+      if (jaPossuiBatismoAtivo) {
+        throw new AppError(
+          "Você já está inscrito em uma turma de batismo ativa.",
+          409,
+        );
+      }
+    }
+
     const matriculaExistente = await this.matriculaRepository.buscarMatricula(
       salaId,
       usuarioId,
@@ -231,6 +242,13 @@ export class MatriculaService {
       usuarioId,
       novoStatus,
     );
+
+    if (
+      novoStatus === MatriculaStatus.CONCLUIDO &&
+      sala.curso.categoria === "Batismo"
+    ) {
+      await this.usuarioRepository.marcarBatizado(usuarioId);
+    }
   }
 
   // ========================

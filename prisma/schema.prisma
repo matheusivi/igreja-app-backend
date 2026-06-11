@@ -14,6 +14,7 @@ model Usuario {
   perfil            String   @default("Membro") // Membro, Líder, Pastor, Administrador
   dataNascimento    DateTime?
   exibirAniversario Boolean  @default(true)
+  batizado Boolean @default(false)
   estadoCivil       String?
   fotoUrl           String?  
   sexo              String // "Masculino", "Feminino"
@@ -28,6 +29,7 @@ model Usuario {
   gruposFamiliares  MembroFamilia[] @relation("MembroDoGrupo")
   convitesEnviados  MembroFamilia[] @relation("ConvitesEnviados")
   gruposCriados     GrupoFamiliar[]  @relation("CriadorGrupo")
+  eventosCriados     Evento[]  @relation("EventosCriados")
 
   @@map("usuarios")
 }
@@ -141,4 +143,34 @@ model MembroFamilia {
 
   @@unique([usuarioId, grupoFamiliarId])
   @@map("membros_familia")
+}
+
+
+model Evento {
+  id                 Int       @id @default(autoincrement())
+  titulo             String
+  descricao          String?
+  local              String?
+  dataInicio         DateTime
+  dataFim            DateTime?
+  tipo               String    @default("Outro") // "Culto", "Reunião", "Retiro", "Conferência", "Outro"
+  cor                String?
+  recorrencia        String    @default("nenhuma") // "nenhuma", "semanal", "mensal"
+  diaSemana          Int?
+  diaDoMes           Int?
+  dataFimRecorrencia DateTime?
+  criadorId          Int
+
+  criador            Usuario   @relation("EventosCriados", fields: [criadorId], references: [id])
+
+  @@map("eventos")
+}
+
+model TokenRevogado {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  expiraEm  DateTime
+  criadoEm  DateTime @default(now())
+
+  @@map("tokens_revogados")
 }

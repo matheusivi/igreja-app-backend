@@ -16,6 +16,7 @@ export interface UsuarioPerfilResponse {
   exibirAniversario: boolean;
   estadoCivil: string | null;
   profissao: string | null;
+  batizado: boolean;
 }
 
 export interface ListarUsuariosQuery {

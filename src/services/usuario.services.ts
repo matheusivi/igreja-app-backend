@@ -61,6 +61,7 @@ export class UsuarioService {
       exibirAniversario: usuario.exibirAniversario,
       estadoCivil: usuario.estadoCivil,
       profissao: usuario.profissao,
+      batizado: usuario.batizado,
     };
   }
 

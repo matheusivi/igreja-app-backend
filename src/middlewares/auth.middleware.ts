@@ -1,98 +1,111 @@
-import type { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/auth.services';
-import type { TokenPayload } from '../services/auth.services';
+import type { Request, Response, NextFunction } from "express";
+import { AuthService } from "../services/auth.services";
+import type { TokenPayload } from "../services/auth.services";
+import { TokenRevogadoRepository } from "../repository/tokenRevogado.repository";
 
 export interface AuthRequest extends Request {
-    user?: {
-        id: number;
-        perfil: string;
-        sexo: string;
-    };
+  user?: {
+    id: number;
+    perfil: string;
+    sexo: string;
+  };
 }
 
 export class AuthMiddleware {
-    private authService: AuthService;
+  private authService: AuthService;
+  private tokenRevogadoRepository: TokenRevogadoRepository;
 
-    constructor() {
-        this.authService = new AuthService();
+  constructor() {
+    this.authService = new AuthService();
+    this.tokenRevogadoRepository = new TokenRevogadoRepository();
+  }
+
+  /**
+   * Verifica se o usuário está autenticado via JWT
+   */
+  public authenticate = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        res.status(401).json({
+          success: false,
+          message: "Token não fornecido. Use o formato: Bearer <token>",
+        });
+        return;
+      }
+
+      const token = authHeader.split(" ")[1];
+
+      if (!token) {
+        res.status(401).json({
+          success: false,
+          message: "Token mal formatado. Use o formato: Bearer <token>",
+        });
+        return;
+      }
+
+      const decoded: TokenPayload = this.authService.verifyToken(token);
+
+      const revogado = await this.tokenRevogadoRepository.estaRevogado(token);
+      if (revogado) {
+        res.status(401).json({
+          success: false,
+          message: "Token inválido. Faça login novamente.",
+        });
+        return;
+      }
+
+      req.user = {
+        id: decoded.id,
+        perfil: decoded.perfil,
+        sexo: decoded.sexo,
+      };
+
+      next();
+    } catch (error: any) {
+      res.status(401).json({
+        success: false,
+        message: error.message || "Token inválido ou expirado.",
+      });
     }
+  };
 
-    /**
-     * Verifica se o usuário está autenticado via JWT
-     */
-    public authenticate = async (
-        req: AuthRequest,
-        res: Response,
-        next: NextFunction
-    ): Promise<void> => {
-        try {
-            const authHeader = req.headers.authorization;
+  /**
+   * Verifica se o usuário possui pelo menos um dos perfis permitidos
+   * Exemplo: requireRole(['Pastor', 'Líder', 'Administrador'])
+   */
+  public requireRole = (allowedRoles: string[], customMessage?: string) => {
+    return (req: AuthRequest, res: Response, next: NextFunction): void => {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          message: "Usuário não autenticado.",
+        });
+        return;
+      }
 
-            if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Token não fornecido. Use o formato: Bearer <token>'
-                });
-                return;
-            }
+      const hasPermission = allowedRoles.includes(req.user.perfil);
 
-            const token = authHeader.split(' ')[1];
+      if (!hasPermission) {
+        res.status(403).json({
+          success: false,
+          message:
+            customMessage ||
+            `Acesso negado. Perfis permitidos: ${allowedRoles.join(", ")}`,
+          seuPerfil: req.user.perfil,
+          perfisPermitidos: allowedRoles,
+        });
+        return;
+      }
 
-            if (!token) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Token mal formatado. Use o formato: Bearer <token>'
-                });
-                return;
-            }
-
-            const decoded: TokenPayload = this.authService.verifyToken(token);
-
-            req.user = {
-                id: decoded.id,
-                perfil: decoded.perfil,
-                sexo: decoded.sexo,
-            };
-
-            next();
-        } catch (error: any) {
-            res.status(401).json({
-                success: false,
-                message: error.message || 'Token inválido ou expirado.'
-            });
-        }
+      next();
     };
-
-    /**
-     * Verifica se o usuário possui pelo menos um dos perfis permitidos
-     * Exemplo: requireRole(['Pastor', 'Líder', 'Administrador'])
-     */
-    public requireRole = (allowedRoles: string[], customMessage?: string) => {
-        return (req: AuthRequest, res: Response, next: NextFunction): void => {
-            if (!req.user) {
-                res.status(401).json({
-                    success: false,
-                    message: 'Usuário não autenticado.'
-                });
-                return;
-            }
-
-            const hasPermission = allowedRoles.includes(req.user.perfil);
-
-            if (!hasPermission) {
-                res.status(403).json({
-                    success: false,
-                    message: customMessage || `Acesso negado. Perfis permitidos: ${allowedRoles.join(', ')}`,
-                    seuPerfil: req.user.perfil,
-                    perfisPermitidos: allowedRoles
-                });
-                return;
-            }
-
-            next();
-        };
-    };
+  };
 }
-
 
 export const authMiddleware = new AuthMiddleware();

@@ -57,6 +57,7 @@ export class UsuarioRepository {
         estadoCivil: true,
         fotoUrl: true,
         profissao: true,
+        batizado: true,
       },
     });
   }
@@ -157,5 +158,12 @@ export class UsuarioRepository {
       AND "dataNascimento" IS NOT NULL
     ORDER BY dia ASC
   `;
+  }
+
+  async marcarBatizado(id: number): Promise<void> {
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { batizado: true },
+    });
   }
 }

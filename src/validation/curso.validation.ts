@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const CategoriasCurso = ['Homens', 'Mulheres', 'Casais', 'Jovens', 'Geral'] as const;
+const CategoriasCurso = ['Homens', 'Mulheres', 'Casais', 'Jovens', 'Geral', 'Batismo'] as const;
 
 export const CreateCursoSchema = z.object({
   nome: z.string()

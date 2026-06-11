@@ -45,6 +45,21 @@ export class MatriculaRepository {
     });
   }
 
+  async buscarMatriculaBatismoAtiva(usuarioId: number): Promise<boolean> {
+    const matricula = await prisma.usuarioSala.findFirst({
+      where: {
+        usuarioId,
+        status: "ativo",
+        sala: {
+          curso: {
+            categoria: "Batismo",
+          },
+        },
+      },
+    });
+    return matricula !== null;
+  }
+
   async salaExiste(salaId: number) {
     return prisma.salaCurso.findUnique({
       where: { id: salaId },
@@ -54,6 +69,7 @@ export class MatriculaRepository {
         curso: {
           select: {
             criadorUsuarioId: true,
+            categoria: true,
           },
         },
       },

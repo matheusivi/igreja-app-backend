@@ -48,9 +48,22 @@ export class SalaService {
     return this.formatarResponse(novaSala);
   }
 
-  public async getById(salaId: number): Promise<SalaResponse> {
-    const sala = await this.salaCursoRepository.buscarPorId(salaId);
+  public async getById(
+    salaId: number,
+    sexoUsuario: string,
+  ): Promise<SalaResponse> {
+    const sala = await this.salaCursoRepository.buscarPorIdComCategoria(salaId);
     if (!sala) throw new AppError("Sala não encontrada", 404);
+
+
+    const categoria = sala.curso?.categoria ?? "";
+    const categoriasPermitidas: string[] = ["Casais", "Jovens", "Geral", "Batismo"];
+    if (sexoUsuario === "Masculino") categoriasPermitidas.push("Homens");
+    if (sexoUsuario === "Feminino") categoriasPermitidas.push("Mulheres");
+
+    if (!categoriasPermitidas.includes(categoria)) {
+      throw new AppError("Você não tem acesso a esta sala.", 403);
+    }
 
     return this.formatarResponse(sala);
   }
@@ -73,7 +86,7 @@ export class SalaService {
 
     whereClauses.push({ status: "ativa" });
 
-    const categoriasPermitidas: string[] = ["Casais", "Jovens", "Geral"];
+    const categoriasPermitidas: string[] = ["Casais", "Jovens", "Geral", "Batismo"];
     if (sexoUsuario === "Masculino") categoriasPermitidas.push("Homens");
     if (sexoUsuario === "Feminino") categoriasPermitidas.push("Mulheres");
 

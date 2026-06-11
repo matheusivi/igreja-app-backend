@@ -26,6 +26,16 @@ const includeCursoComCriador = {
   },
 } satisfies Prisma.SalaCursoInclude;
 
+const includeCursoComCategoria = {
+  curso: {
+    select: {
+      id: true,
+      nome: true,
+      categoria: true,
+    },
+  },
+} satisfies Prisma.SalaCursoInclude;
+
 const includeCursoParaPermissao = {
   curso: {
     select: {
@@ -52,6 +62,13 @@ export class SalaCursoRepository {
     return prisma.salaCurso.findUnique({
       where: { id },
       include: includeCurso,
+    });
+  }
+
+  async buscarPorIdComCategoria(id: number) {
+    return prisma.salaCurso.findUnique({
+      where: { id },
+      include: includeCursoComCategoria,
     });
   }
 
@@ -96,10 +113,10 @@ export class SalaCursoRepository {
   }
 
   async contar(where?: Prisma.SalaCursoWhereInput): Promise<number> {
-  return prisma.salaCurso.count({
-    ...(where !== undefined && { where }),
-  });
-}
+    return prisma.salaCurso.count({
+      ...(where !== undefined && { where }),
+    });
+  }
 
   /**
    * Atualiza uma sala

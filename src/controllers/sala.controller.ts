@@ -43,11 +43,11 @@ export class SalaController {
 
   public getById = async (req: AuthRequest, res: Response): Promise<void> => {
     const salaId = Number(req.params.id);
-    if (isNaN(salaId)) {
-      throw new AppError("ID da sala inválido", 400);
-    }
+    if (isNaN(salaId)) throw new AppError("ID da sala inválido", 400);
 
-    const sala = await this.salaService.getById(salaId);
+    const sexoUsuario = req.user!.sexo;
+
+    const sala = await this.salaService.getById(salaId, sexoUsuario);
 
     res.status(200).json({
       success: true,
