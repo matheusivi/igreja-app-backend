@@ -4,6 +4,8 @@
   "scripts": {
     "dev": "nodemon server.ts",
     "start": "ts-node server.ts",
+    "build": "tsc --project tsconfig.json",
+    "start:prod": "node dist/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -22,6 +24,7 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "prisma": "^7.7.0",
+    "resend": "^6.12.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

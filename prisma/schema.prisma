@@ -30,6 +30,7 @@ model Usuario {
   convitesEnviados  MembroFamilia[] @relation("ConvitesEnviados")
   gruposCriados     GrupoFamiliar[]  @relation("CriadorGrupo")
   eventosCriados     Evento[]  @relation("EventosCriados")
+  passwordResetTokens PasswordResetToken[]
 
   @@map("usuarios")
 }
@@ -173,4 +174,17 @@ model TokenRevogado {
   criadoEm  DateTime @default(now())
 
   @@map("tokens_revogados")
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  usuarioId Int
+  expiraEm  DateTime
+  usado     Boolean  @default(false)
+  criadoEm  DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }

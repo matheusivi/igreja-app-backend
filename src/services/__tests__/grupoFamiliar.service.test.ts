@@ -27,6 +27,7 @@ const makeUsuario = (overrides = {}) => ({
   estadoCivil: null,
   fotoUrl: null,
   profissao: null,
+  batizado: false,
   ...overrides,
 });
 

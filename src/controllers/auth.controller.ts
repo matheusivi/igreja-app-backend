@@ -10,6 +10,10 @@ import {
   AtualizarPerfilSchema,
 } from "../validation/auth.validation";
 import { AppError } from "../utils/AppError";
+import {
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
+} from "../validation/auth.validation";
 
 export class AuthController {
   private authService: AuthService;
@@ -92,6 +96,33 @@ export class AuthController {
     res.status(200).json({
       success: true,
       message: "Perfil do usuário atualizado com sucesso",
+    });
+  };
+
+  public forgotPassword = async (
+    req: Request,
+    res: Response,
+  ): Promise<void> => {
+    const { email } = ForgotPasswordSchema.parse(req.body);
+
+    await this.authService.forgotPassword(email);
+
+    // sempre retorna 200 — não revelar se o e-mail existe
+    res.status(200).json({
+      success: true,
+      message:
+        "Se este e-mail estiver cadastrado, você receberá as instruções em breve.",
+    });
+  };
+
+  public resetPassword = async (req: Request, res: Response): Promise<void> => {
+    const { token, novaSenha } = ResetPasswordSchema.parse(req.body);
+
+    await this.authService.resetPassword(token, novaSenha);
+
+    res.status(200).json({
+      success: true,
+      message: "Senha redefinida com sucesso.",
     });
   };
 

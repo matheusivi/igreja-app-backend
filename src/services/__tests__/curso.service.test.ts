@@ -21,6 +21,8 @@ describe("CursoService", () => {
     email: "joao@test.com",
     senha: "hash123",
     dataNascimento: null,
+    sexo: "Masculino",
+    batizado: false,
     exibirAniversario: true,
     estadoCivil: null,
     fotoUrl: null,

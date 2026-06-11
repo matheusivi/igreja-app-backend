@@ -4,6 +4,7 @@ import { AuthController } from "../controllers/auth.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import type { AuthRequest } from "../middlewares/auth.middleware";
 import type { Response } from "express";
+import { authLimiter } from "../middlewares/rateLimiter";
 
 const router = Router();
 const authController = new AuthController();
@@ -23,5 +24,13 @@ router.patch(
 );
 
 router.post("/logout", authMiddleware.authenticate, authController.logout);
+
+router.post(
+  "/forgot-password",
+  authLimiter, // proteção contra abuso
+  authController.forgotPassword,
+);
+
+router.post("/reset-password", authLimiter, authController.resetPassword);
 
 export { router as authRoutes };

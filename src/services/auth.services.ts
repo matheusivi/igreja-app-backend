@@ -9,8 +9,9 @@ import type {
 } from "../dtos/auth.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { AppError } from "../utils/AppError";
-import { Perfis } from "../constants/perfis";
 import { TokenRevogadoRepository } from "../repository/tokenRevogado.repository";
+import { PasswordResetTokenRepository } from "../repository/passwordResetToken.repository";
+import { enviarEmailRecuperacaoSenha } from "../lib/email";
 
 export interface TokenPayload {
   id: number;
@@ -25,10 +26,12 @@ export class AuthService {
   private readonly SALT_ROUNDS = 10;
   private usuarioRepository: UsuarioRepository;
   private tokenRevogadoRepository: TokenRevogadoRepository;
+  private passwordResetTokenRepository: PasswordResetTokenRepository;
 
   constructor(usuarioRepository?: UsuarioRepository) {
     this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
     this.tokenRevogadoRepository = new TokenRevogadoRepository();
+    this.passwordResetTokenRepository = new PasswordResetTokenRepository();
 
     if (!process.env.JWT_SECRET) {
       throw new Error(
@@ -174,5 +177,42 @@ export class AuthService {
     const expiraEm = new Date(decoded.exp * 1000);
 
     await this.tokenRevogadoRepository.revogar(token, expiraEm);
+  }
+
+  public async forgotPassword(email: string): Promise<void> {
+    const usuario = await this.usuarioRepository.buscarPorEmail(email);
+
+    // não revelar se o e-mail existe ou não — segurança
+    if (!usuario) return;
+
+    const token = await this.passwordResetTokenRepository.criar(usuario.id);
+
+    await enviarEmailRecuperacaoSenha(
+      usuario.email,
+      usuario.nomeCompleto,
+      token,
+    );
+  }
+
+  public async resetPassword(token: string, novaSenha: string): Promise<void> {
+    const registro =
+      await this.passwordResetTokenRepository.buscarValido(token);
+
+    if (!registro) {
+      throw new AppError("Token inválido ou não encontrado.", 400);
+    }
+
+    if (registro.usado) {
+      throw new AppError("Este token já foi utilizado.", 400);
+    }
+
+    if (new Date() > registro.expiraEm) {
+      throw new AppError("Token expirado. Solicite um novo link.", 400);
+    }
+
+    const senhaHash = await bcrypt.hash(novaSenha, this.SALT_ROUNDS);
+
+    await this.usuarioRepository.atualizarSenha(registro.usuarioId, senhaHash);
+    await this.passwordResetTokenRepository.invalidar(token);
   }
 }

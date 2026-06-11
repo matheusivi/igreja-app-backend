@@ -174,8 +174,8 @@ describe("UsuarioService", () => {
       expect(usuarioRepo.buscarAniversariantes).toHaveBeenCalledWith(mesAtual);
       expect(resultado.mes).toBe(mesAtual);
       expect(resultado.data).toHaveLength(1);
-      expect(resultado.data[0].dia).toBe(15);
-      expect(resultado.data[0].aniversariantes).toHaveLength(1);
+      expect(resultado.data[0]!.dia).toBe(15);
+      expect(resultado.data[0]!.aniversariantes).toHaveLength(1);
     });
 
     it("deve retornar aniversariantes do mês informado", async () => {
@@ -190,10 +190,10 @@ describe("UsuarioService", () => {
       expect(usuarioRepo.buscarAniversariantes).toHaveBeenCalledWith(12);
       expect(resultado.mes).toBe(12);
       expect(resultado.data).toHaveLength(2); // dia 3 e dia 20
-      expect(resultado.data[0].dia).toBe(3);
-      expect(resultado.data[0].aniversariantes).toHaveLength(2); // Maria e Pedro no mesmo dia
-      expect(resultado.data[1].dia).toBe(20);
-      expect(resultado.data[1].aniversariantes).toHaveLength(1);
+      expect(resultado.data[0]!.dia).toBe(3);
+      expect(resultado.data[0]!.aniversariantes).toHaveLength(2); // Maria e Pedro no mesmo dia
+      expect(resultado.data[1]!.dia).toBe(20);
+      expect(resultado.data[1]!.aniversariantes).toHaveLength(1);
     });
 
     it("deve retornar lista vazia quando não há aniversariantes no mês", async () => {

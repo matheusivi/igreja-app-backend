@@ -72,6 +72,13 @@ export class UsuarioRepository {
     });
   }
 
+  async atualizarSenha(id: number, senhaHash: string): Promise<void> {
+    await this.prisma.usuario.update({
+      where: { id },
+      data: { senha: senhaHash },
+    });
+  }
+
   async atualizarDados(
     id: number,
     data: {
