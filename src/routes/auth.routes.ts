@@ -2,8 +2,6 @@
 import { Router } from "express";
 import { AuthController } from "../controllers/auth.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
-import type { AuthRequest } from "../middlewares/auth.middleware";
-import type { Response } from "express";
 import { authLimiter } from "../middlewares/rateLimiter";
 
 const router = Router();
@@ -14,6 +12,7 @@ router.post("/register", authController.register);
 router.post("/login", authController.login);
 
 // Rota protegida - retorna dados do usuário logado
+router.get("/me", authMiddleware.authenticate, authController.getCurrentUser);
 router.patch("/me", authMiddleware.authenticate, authController.updateMe);
 
 router.patch(

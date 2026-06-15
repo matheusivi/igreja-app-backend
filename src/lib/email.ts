@@ -11,8 +11,8 @@ export async function enviarEmailRecuperacaoSenha(
   const link = `${env.FRONTEND_URL}/reset-password?token=${token}`;
 
   await resend.emails.send({
-    from: "Igreja App <noreply@suaigreja.com.br>", // trocar pelo seu domínio
-    to: email,
+    from: "Igreja App <onboarding@resend.dev>",
+    to: "matheus.willliam122@gmail.com",
     subject: "Recuperação de senha — IBVI Church",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

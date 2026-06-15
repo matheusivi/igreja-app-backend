@@ -1,5 +1,5 @@
 export interface CreatePedidoOracaoDTO {
-    descricaoPedido: string;
+  descricaoPedido: string;
 }
 
 export interface ListPedidosOracaoDTO {
@@ -9,28 +9,28 @@ export interface ListPedidosOracaoDTO {
 }
 
 export interface PedidoOracaoResponse {
+  id: number;
+  descricaoPedido: string;
+  dataEnvio: Date;
+  visibilidade: string;
+  autor: {
     id: number;
-    descricaoPedido: string;
-    dataEnvio: Date;
-    visibilidade: string;
-    autor: {
-        id: number;
-        nomeCompleto: string;
-        perfil: string;
-    }
+    nomeCompleto: string;
+    perfil: string;
+  };
 }
 
 export interface PedidoOracaoComAutorSimples {
+  id: number;
+  descricaoPedido: string;
+  dataEnvio: Date;
+  visibilidade: string;
+  autorUsuarioId: number;
+  autor: {
     id: number;
-    descricaoPedido: string;
-    dataEnvio: Date;
-    visibilidade: string;
-    autorUsuarioId: number;
-    autor: {
-        id: number;
-        nomeCompleto: string;
-        perfil: string;
-    } | null;
+    nomeCompleto: string;
+    perfil: string;
+  } | null;
 }
 
 export interface ListarPedidosOracaoResponse {
@@ -38,4 +38,8 @@ export interface ListarPedidosOracaoResponse {
   total: number;
   page: number;
   totalPages: number;
+}
+
+export interface UpdatePedidoOracaoDTO {
+  descricaoPedido?: string | undefined;
 }

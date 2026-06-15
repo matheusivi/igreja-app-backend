@@ -2,7 +2,6 @@
 import type { Request, Response } from "express";
 import type { AuthRequest } from "../middlewares/auth.middleware";
 import { AuthService } from "../services/auth.services";
-import type { RegisterDTO, LoginDTO } from "../dtos/auth.dto";
 import {
   RegisterSchema,
   LoginSchema,

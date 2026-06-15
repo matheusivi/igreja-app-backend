@@ -1,26 +1,24 @@
-import { Router } from 'express';
-import { PedidoOracaoController } from '../controllers/pedidoOracao.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { Router } from "express";
+import { PedidoOracaoController } from "../controllers/pedidoOracao.controller";
+import { authMiddleware } from "../middlewares/auth.middleware";
 
 const router = Router();
 const pedidoOracaoController = new PedidoOracaoController();
 
-router.post(
-    '/',
-    authMiddleware.authenticate,
-    pedidoOracaoController.create,
-);
+router.post("/", authMiddleware.authenticate, pedidoOracaoController.create);
 
-router.get(
-    '/',
-    authMiddleware.authenticate,
-    pedidoOracaoController.list,
+router.get("/", authMiddleware.authenticate, pedidoOracaoController.list);
+
+router.patch(
+  "/:id",
+  authMiddleware.authenticate,
+  pedidoOracaoController.update,
 );
 
 router.delete(
-    '/:id',
-    authMiddleware.authenticate,
-    pedidoOracaoController.delete,
+  "/:id",
+  authMiddleware.authenticate,
+  pedidoOracaoController.delete,
 );
 
 export { router as pedidoOracaoRoutes };
