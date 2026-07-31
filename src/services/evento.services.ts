@@ -11,6 +11,7 @@ import { EventoRepository } from "../repository/evento.repository";
 import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
+import { extrairPublicId, removerImagem } from "../lib/cloudinary";
 
 export class EventoService {
   private usuarioRepository: UsuarioRepository;
@@ -31,6 +32,14 @@ export class EventoService {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) throw new AppError("Usuário não encontrado.", 404);
 
+    const destaqueHome = data.destaqueHome ?? false;
+
+    // Só um evento pode estar em destaque na Home: ao marcar um novo,
+    // os anteriores perdem o destaque.
+    if (destaqueHome) {
+      await this.eventoRepository.limparDestaques();
+    }
+
     const novoEvento = await this.eventoRepository.criar({
       titulo: data.titulo,
       descricao: data.descricao || null,
@@ -45,6 +54,8 @@ export class EventoService {
       dataFimRecorrencia: data.dataFimRecorrencia
         ? new Date(data.dataFimRecorrencia)
         : null,
+      destaqueHome,
+      imagemUrl: data.imagemUrl || null,
       criador: { connect: { id: usuarioId } },
     });
 
@@ -137,6 +148,26 @@ export class EventoService {
         ? new Date(data.dataFimRecorrencia)
         : null;
     }
+    if (data.imagemUrl !== undefined) {
+      updateData.imagemUrl = data.imagemUrl;
+
+      // Trocou ou removeu a capa: apaga a antiga no Cloudinary, senão ela fica
+      // ocupando espaço para sempre sem aparecer em lugar nenhum.
+      const eventoCompleto =
+        await this.eventoRepository.buscarPorId(eventoId);
+      const capaAntiga = eventoCompleto?.imagemUrl;
+      if (capaAntiga && capaAntiga !== data.imagemUrl) {
+        const publicId = extrairPublicId(capaAntiga);
+        if (publicId) await removerImagem(publicId);
+      }
+    }
+    if (data.destaqueHome !== undefined) {
+      updateData.destaqueHome = data.destaqueHome;
+      // Marcar este como destaque tira o destaque dos outros.
+      if (data.destaqueHome) {
+        await this.eventoRepository.limparDestaques(eventoId);
+      }
+    }
 
     const eventoAtualizado = await this.eventoRepository.atualizar(
       eventoId,
@@ -217,12 +248,16 @@ export class EventoService {
     return {
       id: evento.id,
       titulo: evento.titulo,
+      descricao: evento.descricao,
       tipo: evento.tipo,
       cor: evento.cor,
       dataInicio,
       dataFim: evento.dataFim,
       local: evento.local,
       recorrencia: evento.recorrencia,
+      criadorId: evento.criadorId,
+      destaqueHome: evento.destaqueHome,
+      imagemUrl: evento.imagemUrl,
     };
   }
 
@@ -240,6 +275,9 @@ export class EventoService {
       diaSemana: evento.diaSemana,
       diaDoMes: evento.diaDoMes,
       dataFimRecorrencia: evento.dataFimRecorrencia,
+      destaqueHome: evento.destaqueHome,
+      imagemUrl: evento.imagemUrl,
+      criadorId: evento.criadorId,
       criador: {
         id: evento.criador?.id ?? 0,
         nomeCompleto: evento.criador?.nomeCompleto ?? "",

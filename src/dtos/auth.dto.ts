@@ -23,9 +23,10 @@ export interface AuthResponse {
 
 export interface UpdateMeDTO {
   nomeCompleto?: string | undefined;
+  sexo?: string | undefined;
   dataNascimento?: string | undefined;
   estadoCivil?: string | undefined;
   profissao?: string | undefined;
   exibirAniversario?: boolean | undefined;
-  fotoUrl?: string | undefined;
+  fotoUrl?: string | null | undefined;
 }

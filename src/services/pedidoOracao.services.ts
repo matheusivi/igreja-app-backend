@@ -138,6 +138,7 @@ export class PedidoOracaoService {
         id: pedido.autor?.id ?? 0,
         nomeCompleto: pedido.autor?.nomeCompleto || "",
         perfil: pedido.autor?.perfil || "",
+        fotoUrl: pedido.autor?.fotoUrl ?? null,
       },
     };
   }

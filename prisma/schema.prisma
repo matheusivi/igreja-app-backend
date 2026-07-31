@@ -24,6 +24,7 @@ model Usuario {
   cursosCriados      Curso[]        @relation("CriadorCurso")
   historicoCursos    UsuarioCurso[]
   participacoesSalas UsuarioSala[]
+  salasLideradas     SalaCurso[]    @relation("LiderSala")
   pedidosOracao     PedidoOracao[]
   // leiturasDiarias   LeituraDiaria[]
   gruposFamiliares  MembroFamilia[] @relation("MembroDoGrupo")
@@ -71,12 +72,36 @@ model Curso {
   nome              String
   descricaoMaterial String?
   categoria         String   // "Homens", "Mulheres", "Casais", "Jovens", "Geral", etc.
+  // Texto livre porque a duração real é uma faixa ("12 a 13 semanas"),
+  // não um número exato — guardar Int obrigaria a mentir.
+  duracao           String?
+  publicoAlvo       String?
 
   criador           Usuario  @relation("CriadorCurso", fields: [criadorUsuarioId], references: [id])
   salas             SalaCurso[]
   historicoUsuarios UsuarioCurso[]
+  capitulos         CapituloCurso[]
 
   @@map("cursos")
+}
+
+/// Ementa do curso: os temas estudados semana a semana.
+/// Pertence ao curso, não à turma — toda turma do mesmo curso segue a
+/// mesma sequência, então cadastrar uma vez serve para sempre.
+model CapituloCurso {
+  id      Int     @id @default(autoincrement())
+  cursoId Int
+  ordem   Int
+  titulo  String
+  /// Agrupamento opcional, para cursos divididos em partes
+  /// ("Parte 1 – Comunicação") ou módulos.
+  secao   String?
+
+  curso   Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+
+  @@unique([cursoId, ordem])
+  @@index([cursoId])
+  @@map("capitulos_curso")
 }
 
 model SalaCurso {
@@ -86,10 +111,20 @@ model SalaCurso {
   dataInicio DateTime?
   dataFim    DateTime?
   status     String   @default("ativa")   // "ativa", "inativa", "concluída"
+  // Limite de matrículas ativas. Null = sem limite.
+  capacidade Int?
+  // Quem conduz a turma. A tela de criação já prometia "você será o líder
+  // desta turma", mas isso não era guardado em lugar nenhum.
+  liderUsuarioId Int?
 
   curso      Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  lider      Usuario? @relation("LiderSala", fields: [liderUsuarioId], references: [id])
   participantes UsuarioSala[]
 
+  // A consulta da tela do curso é sempre "turmas ativas deste curso". O
+  // Postgres não cria índice para chave estrangeira sozinho, então sem isto
+  // ele varreria a tabela inteira — e ela só cresce a cada turma encerrada.
+  @@index([cursoId, status])
   @@map("salas_curso")
 }
 
@@ -122,7 +157,9 @@ model UsuarioSala {
 model GrupoFamiliar {
   id    Int     @id @default(autoincrement())
   nome  String?
-  criadorUsuarioId Int  
+  // Foto do grupo familiar, hospedada no Cloudinary.
+  imagemUrl String?
+  criadorUsuarioId Int
 
   criador Usuario       @relation("CriadorGrupo", fields: [criadorUsuarioId], references: [id])
   membros MembroFamilia[]
@@ -160,6 +197,12 @@ model Evento {
   diaSemana          Int?
   diaDoMes           Int?
   dataFimRecorrencia DateTime?
+  // Destaque da tela inicial do app: no máximo um evento marcado por vez
+  // (a regra é garantida no service, ao criar/atualizar).
+  destaqueHome       Boolean   @default(false)
+  // Capa do evento, hospedada no Cloudinary. Opcional: evento sem foto
+  // continua válido e a tela cai no visual de gradiente.
+  imagemUrl          String?
   criadorId          Int
 
   criador            Usuario   @relation("EventosCriados", fields: [criadorId], references: [id])

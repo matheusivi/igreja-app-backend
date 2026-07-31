@@ -10,6 +10,8 @@ export interface CreateEventoDTO {
   diaSemana?: number | undefined;
   diaDoMes?: number | undefined;
   dataFimRecorrencia?: string | undefined;
+  destaqueHome?: boolean | undefined;
+  imagemUrl?: string | null | undefined;
 }
 
 export interface UpdateEventoDTO {
@@ -24,6 +26,8 @@ export interface UpdateEventoDTO {
   diaSemana?: number | undefined;
   diaDoMes?: number | undefined;
   dataFimRecorrencia?: string | undefined;
+  destaqueHome?: boolean | undefined;
+  imagemUrl?: string | null | undefined;
 }
 
 export interface EventoResponse {
@@ -39,6 +43,11 @@ export interface EventoResponse {
   diaSemana: number | null;
   diaDoMes: number | null;
   dataFimRecorrencia: Date | null;
+  destaqueHome: boolean;
+  imagemUrl: string | null;
+  // Exposto também "solto" para o app checar permissão de edição sem
+  // depender do objeto aninhado.
+  criadorId: number;
   criador: {
     id: number;
     nomeCompleto: string;
@@ -49,12 +58,16 @@ export interface EventoResponse {
 export interface EventoOcorrencia {
   id: number;
   titulo: string;
+  descricao: string | null;
   tipo: string;
   cor: string | null;
   dataInicio: Date;
   dataFim: Date | null;
   local: string | null;
   recorrencia: string;
+  criadorId: number;
+  destaqueHome: boolean;
+  imagemUrl: string | null;
 }
 
 export interface ListarEventosMesResponse {
@@ -79,6 +92,8 @@ export interface EventoComCriadorSimples {
   diaSemana: number | null;
   diaDoMes: number | null;
   dataFimRecorrencia: Date | null;
+  destaqueHome: boolean;
+  imagemUrl: string | null;
   criadorId: number;
   criador: {
     id: number;

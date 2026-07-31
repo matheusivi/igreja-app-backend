@@ -9,6 +9,10 @@ const includeCriador = {
       perfil: true,
     },
   },
+  capitulos: {
+    select: { id: true, ordem: true, titulo: true, secao: true },
+    orderBy: { ordem: "asc" },
+  },
 } satisfies Prisma.CursoInclude;
 
 export class CursoRepository {
@@ -33,6 +37,49 @@ export class CursoRepository {
         id: true,
         criadorUsuarioId: true,
       },
+    });
+  }
+
+  /**
+   * Troca a ementa inteira do curso.
+   *
+   * Apaga e recria em vez de fazer diff: a ementa é curta (10 a 19 itens) e
+   * a ordem importa. Casar item a item para descobrir o que mudou seria mais
+   * código e mais chance de deixar a numeração furada.
+   */
+  async substituirCapitulos(
+    cursoId: number,
+    // `| undefined` explícito por causa do `exactOptionalPropertyTypes` do
+    // tsconfig: com ele ligado, `secao?: string | null` recusa um objeto que
+    // traz `secao: undefined`, e é exatamente isso que o DTO produz.
+    capitulos: {
+      ordem: number;
+      titulo: string;
+      secao?: string | null | undefined;
+    }[],
+  ) {
+    return prisma.$transaction([
+      prisma.capituloCurso.deleteMany({ where: { cursoId } }),
+      prisma.capituloCurso.createMany({
+        data: capitulos.map((c) => ({
+          cursoId,
+          ordem: c.ordem,
+          titulo: c.titulo,
+          secao: c.secao ?? null,
+        })),
+      }),
+    ]);
+  }
+
+  /**
+   * Toda matrícula já registrada no curso, de qualquer status.
+   *
+   * É o que diz se existe histórico a perder: alguém que concluiu conta tanto
+   * quanto alguém que está cursando agora.
+   */
+  async contarMatriculas(cursoId: number): Promise<number> {
+    return prisma.usuarioSala.count({
+      where: { sala: { cursoId } },
     });
   }
 

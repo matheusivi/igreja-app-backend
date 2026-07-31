@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { env } from "./src/config/env";
 import { prisma } from "./src/lib/prisma";
 import { logger } from "./src/lib/logger";
+import { cloudinaryConfigurado } from "./src/lib/cloudinary";
 
 import { authLimiter, generalLimiter } from "./src/middlewares/rateLimiter";
 import { requestLogger } from "./src/middlewares/requestLogger.middleware";
@@ -22,6 +23,7 @@ import { pedidoOracaoRoutes } from "./src/routes/pedidoOracao.routes";
 import { grupoFamiliarRoutes } from "./src/routes/grupoFamiliar.routes";
 import { usuarioRoutes } from "./src/routes/usuario.routes";
 import { eventoRoutes } from "./src/routes/evento.routes";
+import { uploadRoutes } from "./src/routes/upload.routes";
 
 // ======================
 // Aplicação
@@ -37,7 +39,7 @@ app.use(
   cors({
     origin: env.ALLOWED_ORIGINS
       ? env.ALLOWED_ORIGINS.split(",")
-      : ["http://localhost:3000", "http://127.0.0.1:3000"],
+      : ["http://localhost:3000", "http://192.168.1.32:3000"],
     credentials: true,
   }),
 );
@@ -74,6 +76,7 @@ app.use("/api/matriculas", matriculaRoutes);
 app.use("/api/pedido-oracao", pedidoOracaoRoutes);
 app.use("/api/familias", grupoFamiliarRoutes);
 app.use("/api/eventos", eventoRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // ======================
 // Health Check
@@ -129,6 +132,16 @@ setInterval(
 // ======================
 const server = app.listen(PORT, () => {
   logger.info(`🚀 Servidor rodando na porta ${PORT}`);
+
+  // Aviso explícito no boot: sem isso, credencial faltando só apareceria como
+  // um 503 no meio de um upload, longe da causa.
+  if (cloudinaryConfigurado) {
+    logger.info("🖼️  Cloudinary configurado — upload de imagens disponível");
+  } else {
+    logger.warn(
+      "⚠️  Cloudinary sem credenciais no .env — upload de imagens vai responder 503",
+    );
+  }
 });
 
 // ======================

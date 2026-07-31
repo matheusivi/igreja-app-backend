@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { GrupoFamiliarService } from "../services/grupoFamiliar.services";
 import {
   CreateGrupoFamiliarSchema,
+  UpdateGrupoFamiliarSchema,
   ConvidarMembroSchema,
   ResponderConviteSchema,
 } from "../validation/grupoFamiliar.validation";
@@ -28,6 +29,26 @@ export class GrupoFamiliarController {
       success: true,
       data: grupo,
       message: "Grupo familiar criado com sucesso",
+    });
+  };
+
+  public update = async (req: AuthRequest, res: Response): Promise<void> => {
+    const grupoId = Number(req.params.grupoId);
+    if (isNaN(grupoId)) throw new AppError("ID do grupo inválido", 400);
+
+    const validatedData = UpdateGrupoFamiliarSchema.parse(req.body);
+
+    const grupo = await this.grupoFamiliarService.update(
+      grupoId,
+      validatedData,
+      req.user!.id,
+      req.user!.perfil,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: grupo,
+      message: "Grupo familiar atualizado com sucesso",
     });
   };
 
@@ -117,6 +138,21 @@ export class GrupoFamiliarController {
     res.status(200).json({
       success: true,
       ...resultado,
+    });
+  };
+
+  public getConvitesPendentes = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const usuarioId = req.user!.id;
+
+    const convites =
+      await this.grupoFamiliarService.getConvitesPendentes(usuarioId);
+
+    res.status(200).json({
+      success: true,
+      data: convites,
     });
   };
 

@@ -1,5 +1,11 @@
 export interface CreateGrupoFamiliarDTO {
     nome?: string | undefined;
+    imagemUrl?: string | null | undefined;
+}
+
+export interface UpdateGrupoFamiliarDTO {
+    nome?: string | undefined;
+    imagemUrl?: string | null | undefined;
 }
 
 export interface ConvidarMembroDTO {
@@ -30,12 +36,16 @@ export interface MembroFamiliaResponse {
 export interface GrupoFamiliarResponse {
     id: number;
     nome: string | null;
+    imagemUrl: string | null;
+    criadorUsuarioId: number;
     membros: MembroFamiliaResponse[];
 }
 
 export interface GrupoFamiliarComMembros {
     id: number;
     nome: string | null;
+    imagemUrl: string | null;
+    criadorUsuarioId: number;
     membros: {
         id: number;
         parentesco: string | null;
@@ -58,4 +68,12 @@ export interface ListarGruposFamiliaresResponse {
     total: number;
     page: number;
     totalPages: number;
+}
+
+export interface ConviteFamiliaPendenteResponse {
+    id: number;
+    grupoId: number;
+    nomeGrupo: string | null;
+    parentesco: string | null;
+    convidadoPor: { id: number; nomeCompleto: string };
 }

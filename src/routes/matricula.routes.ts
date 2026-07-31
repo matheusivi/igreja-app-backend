@@ -29,6 +29,13 @@ router.get('/sala/:salaId/participantes',
     matriculaController.listarParticipantes
 );
 
+// Lista colegas ativos de uma sala — qualquer matriculado ativo pode ver
+// (autorização por matrícula, não por perfil — sem requireRole aqui de propósito)
+router.get('/sala/:salaId/colegas',
+    authMiddleware.authenticate,
+    matriculaController.listarColegas
+);
+
 // Remove um participante da sala
 router.delete('/sala/:salaId/participantes/:usuarioId',
     authMiddleware.authenticate,

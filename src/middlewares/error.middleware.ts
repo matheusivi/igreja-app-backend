@@ -20,13 +20,22 @@ export const errorHandler = (
     statusCode = 400;
     message = "Dados inválidos";
 
+    const errors = err.issues.map((issue) => ({
+      field: issue.path.join("."),
+      message: issue.message,
+    }));
+
+    // Sai no log com o campo que reprovou. Antes o terminal só mostrava
+    // "POST /api/salas/12 400" e não havia como saber o que estava errado.
+    logger.warn(
+      { method: req.method, url: req.url, statusCode, errors },
+      "Validação falhou",
+    );
+
     res.status(400).json({
       success: false,
       message,
-      errors: err.issues.map((issue) => ({
-        field: issue.path.join("."),
-        message: issue.message,
-      })),
+      errors,
     });
     return;
   } else if (err instanceof Prisma.PrismaClientKnownRequestError) {

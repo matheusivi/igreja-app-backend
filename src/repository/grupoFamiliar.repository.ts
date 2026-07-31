@@ -37,6 +37,14 @@ export class GrupoFamiliarRepository {
         });
     }
 
+    async atualizar(id: number, data: Prisma.GrupoFamiliarUpdateInput) {
+        return prisma.grupoFamiliar.update({
+            where: { id },
+            data,
+            include: includeMembros,
+        });
+    }
+
    async buscarPorUsuario(usuarioId: number, skip: number = 0, take: number = 20) {
   return prisma.grupoFamiliar.findMany({
     where: {
@@ -86,6 +94,16 @@ export class GrupoFamiliarRepository {
         return prisma.membroFamilia.update({
             where: { id },
             data: { status },
+        });
+    }
+
+    async buscarConvitesPendentes(usuarioId: number) {
+        return prisma.membroFamilia.findMany({
+            where: { usuarioId, status: 'pendente' },
+            include: {
+                grupoFamiliar: { select: { id: true, nome: true } },
+                convidadoPor: { select: { id: true, nomeCompleto: true } },
+            },
         });
     }
 

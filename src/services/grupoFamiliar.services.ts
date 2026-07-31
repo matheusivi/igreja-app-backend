@@ -1,16 +1,20 @@
 import type {
   CreateGrupoFamiliarDTO,
+  UpdateGrupoFamiliarDTO,
   ConvidarMembroDTO,
   ResponderConviteDTO,
   GrupoFamiliarResponse,
   GrupoFamiliarComMembros,
   MembroFamiliaResponse,
+  ConviteFamiliaPendenteResponse,
 } from "../dtos/grupoFamiliar.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { GrupoFamiliarRepository } from "../repository/grupoFamiliar.repository";
 import { AppError } from "../utils/AppError";
 import { Perfis } from "../constants/perfis";
 import { ListarGruposFamiliaresResponse } from "../dtos/grupoFamiliar.dto";
+import { Prisma } from "@prisma/client";
+import { extrairPublicId, removerImagem } from "../lib/cloudinary";
 
 export class GrupoFamiliarService {
   private usuarioRepository: UsuarioRepository;
@@ -34,6 +38,7 @@ export class GrupoFamiliarService {
 
     const novoGrupo = await this.grupoFamiliarRepository.criar({
       nome: data.nome || null,
+      imagemUrl: data.imagemUrl || null,
       criador: { connect: { id: usuarioId } },
       membros: {
         create: {
@@ -46,6 +51,55 @@ export class GrupoFamiliarService {
     });
 
     return this.formatarResponse(novoGrupo);
+  }
+
+  /**
+   * Atualiza nome e foto do grupo.
+   *
+   * Sem isto a foto só poderia ser definida no momento da criação — quem já
+   * tinha grupo nunca conseguiria adicionar uma, e ninguém conseguiria trocar.
+   */
+  public async update(
+    grupoId: number,
+    data: UpdateGrupoFamiliarDTO,
+    usuarioId: number,
+    perfil: string,
+  ): Promise<GrupoFamiliarResponse> {
+    const grupo = await this.grupoFamiliarRepository.buscarPorId(grupoId);
+    if (!grupo) throw new AppError("Grupo familiar não encontrado.", 404);
+
+    const podeEditar =
+      grupo.criadorUsuarioId === usuarioId ||
+      perfil === Perfis.ADMINISTRADOR ||
+      perfil === Perfis.PASTOR;
+
+    if (!podeEditar) {
+      throw new AppError(
+        "Você não tem permissão para editar este grupo.",
+        403,
+      );
+    }
+
+    const updateData: Prisma.GrupoFamiliarUpdateInput = {};
+    if (data.nome !== undefined) updateData.nome = data.nome || null;
+    if (data.imagemUrl !== undefined) updateData.imagemUrl = data.imagemUrl;
+
+    const grupoAtualizado = await this.grupoFamiliarRepository.atualizar(
+      grupoId,
+      updateData,
+    );
+
+    // Foto antiga vira lixo no Cloudinary se não for apagada aqui.
+    if (
+      data.imagemUrl !== undefined &&
+      grupo.imagemUrl &&
+      grupo.imagemUrl !== data.imagemUrl
+    ) {
+      const publicId = extrairPublicId(grupo.imagemUrl);
+      if (publicId) await removerImagem(publicId);
+    }
+
+    return this.formatarResponse(grupoAtualizado);
   }
 
   public async convidar(
@@ -158,6 +212,24 @@ export class GrupoFamiliarService {
     };
   }
 
+  public async getConvitesPendentes(
+    usuarioId: number,
+  ): Promise<ConviteFamiliaPendenteResponse[]> {
+    const convites =
+      await this.grupoFamiliarRepository.buscarConvitesPendentes(usuarioId);
+
+    return convites.map((convite) => ({
+      id: convite.id,
+      grupoId: convite.grupoFamiliarId,
+      nomeGrupo: convite.grupoFamiliar?.nome ?? null,
+      parentesco: convite.parentesco,
+      convidadoPor: {
+        id: convite.convidadoPor?.id ?? 0,
+        nomeCompleto: convite.convidadoPor?.nomeCompleto ?? "",
+      },
+    }));
+  }
+
   public async removerMembro(
     grupoId: number,
     membroUsuarioId: number,
@@ -202,6 +274,8 @@ export class GrupoFamiliarService {
     return {
       id: grupo.id,
       nome: grupo.nome,
+      imagemUrl: grupo.imagemUrl,
+      criadorUsuarioId: grupo.criadorUsuarioId,
       membros: grupo.membros.map(
         (m): MembroFamiliaResponse => ({
           id: m.id,

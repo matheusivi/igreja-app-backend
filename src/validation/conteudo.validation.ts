@@ -89,7 +89,8 @@ export const UpdateConteudoSchema = z.object({
     .min(10, "O texto deve ter pelo menos 10 caracteres")
     .optional(),
 
-  imagemUrl: z.url("URL da imagem inválida").optional(),
+  // `null` remove a capa. Campo ausente significa "não mexer".
+  imagemUrl: z.union([z.url("URL da imagem inválida"), z.null()]).optional(),
 
   videoUrl: z.url("URL do vídeo inválida").optional(),
 

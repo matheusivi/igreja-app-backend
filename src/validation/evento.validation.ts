@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+/**
+ * Capa do evento (URL do Cloudinary).
+ *
+ * `null` é aceito na atualização de propósito: é assim que o app remove a capa.
+ * Só `optional()` não bastaria, porque campo ausente significa "não mexer".
+ */
+const imagemUrlSchema = z.union([
+  z.url("URL da imagem inválida"),
+  z.null(),
+]);
+
 export const CreateEventoSchema = z
   .object({
     titulo: z
@@ -43,6 +54,11 @@ export const CreateEventoSchema = z
     dataFimRecorrencia: z.iso
       .datetime({ message: "Data fim de recorrência inválida" })
       .optional(),
+
+    // Destaque da tela inicial do app — ao marcar, o service desmarca os demais.
+    destaqueHome: z.boolean().default(false),
+
+    imagemUrl: imagemUrlSchema.optional(),
   })
   .refine(
     (data) => {
@@ -124,6 +140,10 @@ export const UpdateEventoSchema = z.object({
   dataFimRecorrencia: z.iso
     .datetime({ message: "Data fim de recorrência inválida" })
     .optional(),
+
+  destaqueHome: z.boolean().optional(),
+
+  imagemUrl: imagemUrlSchema.optional(),
 });
 
 export const ListarEventosQuerySchema = z.object({

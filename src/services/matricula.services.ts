@@ -7,6 +7,7 @@ import type {
   StatusMatricula,
   ListarParticipantesResponse,
   ListarHistoricoResponse,
+  ColegaSalaResponse,
 } from "../dtos/matricula.dto";
 import { MatriculaRepository } from "../repository/matricula.repository";
 import { UsuarioRepository } from "../repository/usuario.repository";
@@ -83,6 +84,18 @@ export class MatriculaService {
       salaId,
       usuarioId,
     );
+
+    // Turma lotada. Verificado aqui, e não só na tela: o app pode estar com
+    // uma contagem defasada em cache, e duas pessoas podem tocar em
+    // "matricular" ao mesmo tempo na última vaga.
+    const jaEstaAtivo = matriculaExistente?.status === MatriculaStatus.ATIVO;
+    if (sala.capacidade !== null && !jaEstaAtivo) {
+      const ativos =
+        await this.matriculaRepository.contarParticipantesAtivos(salaId);
+      if (ativos >= sala.capacidade) {
+        throw new AppError("Esta turma já está lotada.", 409);
+      }
+    }
 
     if (matriculaExistente) {
       if (matriculaExistente.status === MatriculaStatus.ATIVO) {
@@ -272,6 +285,7 @@ export class MatriculaService {
 
     return {
       data: historico.map((item) => ({
+        salaId: item.salaId,
         cursoId: item.sala.curso.id,
         nomeCurso: item.sala.curso.nome,
         categoria: item.sala.curso.categoria,
@@ -283,5 +297,39 @@ export class MatriculaService {
       page,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  // ========================
+  // COLEGAS DE TURMA (qualquer matriculado ativo)
+  // ========================
+  public async listarColegas(
+    salaId: number,
+    usuarioId: number,
+  ): Promise<ColegaSalaResponse[]> {
+    const minhaMatricula = await this.matriculaRepository.buscarMatricula(
+      salaId,
+      usuarioId,
+    );
+
+    if (!minhaMatricula || minhaMatricula.status !== MatriculaStatus.ATIVO) {
+      throw new AppError(
+        "Você precisa estar matriculado nesta turma para ver os colegas.",
+        403,
+      );
+    }
+
+    const participantes = await this.matriculaRepository.listarParticipantes(
+      salaId,
+      0,
+      200,
+    );
+
+    return participantes
+      .filter((p) => p.status === MatriculaStatus.ATIVO)
+      .map((p) => ({
+        usuarioId: p.usuario.id,
+        nomeCompleto: p.usuario.nomeCompleto,
+        perfil: p.usuario.perfil,
+      }));
   }
 }

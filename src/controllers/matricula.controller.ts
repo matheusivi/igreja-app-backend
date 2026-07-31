@@ -126,4 +126,19 @@ export class MatriculaController {
       ...resultado,
     });
   };
+
+  public listarColegas = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const salaId = SalaIdParamSchema.parse(Number(req.params.salaId));
+    const usuarioId = req.user!.id;
+
+    const colegas = await this.matriculaService.listarColegas(salaId, usuarioId);
+
+    res.status(200).json({
+      success: true,
+      data: colegas,
+    });
+  };
 }

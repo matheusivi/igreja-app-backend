@@ -17,6 +17,7 @@ export interface PedidoOracaoResponse {
     id: number;
     nomeCompleto: string;
     perfil: string;
+    fotoUrl: string | null;
   };
 }
 
@@ -30,6 +31,7 @@ export interface PedidoOracaoComAutorSimples {
     id: number;
     nomeCompleto: string;
     perfil: string;
+    fotoUrl: string | null;
   } | null;
 }
 

@@ -9,6 +9,7 @@ import type {
 } from "../dtos/sala.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { SalaCursoRepository } from "../repository/salaCurso.repository";
+import { MatriculaRepository } from "../repository/matricula.repository";
 import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
@@ -16,13 +17,16 @@ import { Perfis } from "../constants/perfis";
 export class SalaService {
   private usuarioRepository: UsuarioRepository;
   private salaCursoRepository: SalaCursoRepository;
+  private matriculaRepository: MatriculaRepository;
 
   constructor(
     usuarioRepository?: UsuarioRepository,
     salaCursoRepository?: SalaCursoRepository,
+    matriculaRepository?: MatriculaRepository,
   ) {
     this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
     this.salaCursoRepository = salaCursoRepository ?? new SalaCursoRepository();
+    this.matriculaRepository = matriculaRepository ?? new MatriculaRepository();
   }
 
   public async create(
@@ -43,6 +47,10 @@ export class SalaService {
       dataInicio: data.dataInicio ? new Date(data.dataInicio) : null,
       dataFim: data.dataFim ? new Date(data.dataFim) : null,
       status: "ativa",
+      capacidade: data.capacidade ?? null,
+      // Quem cria a turma passa a ser o líder dela — era o que a tela de
+      // criação já prometia ao usuário, mas ninguém guardava.
+      lider: { connect: { id: usuarioId } },
     });
 
     return this.formatarResponse(novaSala);
@@ -84,7 +92,12 @@ export class SalaService {
     const skip = (page - 1) * limit;
     const whereClauses: Prisma.SalaCursoWhereInput[] = [];
 
-    whereClauses.push({ status: "ativa" });
+    // Antes isto era `{ status: "ativa" }` fixo: turma encerrada desaparecia
+    // do app para todo mundo, inclusive para quem participou dela e para o
+    // próprio líder. Agora o filtro é opcional e quem decide é a tela.
+    if (filters.status) {
+      whereClauses.push({ status: filters.status });
+    }
 
     const categoriasPermitidas: string[] = ["Casais", "Jovens", "Geral", "Batismo"];
     if (sexoUsuario === "Masculino") categoriasPermitidas.push("Homens");
@@ -102,14 +115,20 @@ export class SalaService {
     const cursoFilter: Prisma.CursoWhereInput = {};
     if (cursoNome)
       cursoFilter.nome = { contains: cursoNome, mode: "insensitive" };
-    if (liderNome) {
-      cursoFilter.criador = {
-        is: { nomeCompleto: { contains: liderNome, mode: "insensitive" } },
-      };
-    }
 
     if (Object.keys(cursoFilter).length > 0) {
       whereClauses.push({ curso: { is: cursoFilter } });
+    }
+
+    // Busca pelo líder DA TURMA, não pelo criador do curso. Antes olhava
+    // `curso.criador`, o que devolvia todas as turmas do curso independente
+    // de quem realmente conduz cada uma.
+    if (liderNome) {
+      whereClauses.push({
+        lider: {
+          is: { nomeCompleto: { contains: liderNome, mode: "insensitive" } },
+        },
+      });
     }
 
     const whereClause = { AND: whereClauses };
@@ -164,6 +183,24 @@ export class SalaService {
       updateData.dataFim = data.dataFim ? new Date(data.dataFim) : null;
     }
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.capacidade !== undefined) updateData.capacidade = data.capacidade;
+
+    // Encerrar a turma fecha as matrículas que ainda estavam ativas. Sem
+    // isso elas ficariam "ativo" para sempre e o Perfil da pessoa continuaria
+    // mostrando "Em andamento" num curso que já acabou.
+    if (data.status === "concluída") {
+      const salaComCategoria =
+        await this.salaCursoRepository.buscarPorIdComCategoria(salaId);
+
+      const ativos =
+        await this.matriculaRepository.listarUsuariosAtivos(salaId);
+      await this.matriculaRepository.concluirMatriculasAtivas(salaId);
+
+      // Concluir Batismo é o que marca a pessoa como batizada no perfil.
+      if (salaComCategoria?.curso?.categoria === "Batismo") {
+        await this.usuarioRepository.marcarBatizadosEmLote(ativos);
+      }
+    }
 
     const salaAtualizada = await this.salaCursoRepository.atualizar(
       salaId,
@@ -187,10 +224,21 @@ export class SalaService {
       perfil !== Perfis.PASTOR &&
       salaExistente.curso.criadorUsuarioId !== usuarioId
     ) {
-      throw new AppError(
-        "Você não tem permissão para atualizar esta sala",
-        403,
-      );
+      throw new AppError("Você não tem permissão para excluir esta turma", 403);
+    }
+
+    // Mesma regra do curso: apagar a turma leva junto as matrículas. Quem tem
+    // gente matriculada deve ser encerrada, não excluída — encerrar preserva
+    // o histórico de quem participou.
+    if (perfil !== Perfis.ADMINISTRADOR) {
+      const matriculas =
+        await this.matriculaRepository.contarParticipantes(salaId);
+      if (matriculas > 0) {
+        throw new AppError(
+          `Esta turma tem ${matriculas} matrícula(s) registradas. Use "Encerrar turma" para finalizá-la sem perder o histórico — excluir é permitido apenas ao administrador.`,
+          403,
+        );
+      }
     }
 
     await this.salaCursoRepository.deletar(salaId);
@@ -203,6 +251,10 @@ export class SalaService {
       dataInicio: sala.dataInicio,
       dataFim: sala.dataFim,
       status: sala.status,
+      capacidade: sala.capacidade,
+      totalMatriculas: sala._count?.participantes ?? 0,
+      lider: sala.lider ?? null,
+      cursoId: sala.cursoId,
       curso: {
         id: sala.curso?.id ?? 0,
         nome: sala.curso?.nome ?? "",

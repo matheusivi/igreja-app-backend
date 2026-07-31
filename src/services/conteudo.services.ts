@@ -12,6 +12,7 @@ import { ConteudoRepository } from "../repository/conteudo.repository";
 import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
+import { extrairPublicId, removerImagem } from "../lib/cloudinary";
 
 export class ConteudoService {
   private usuarioRepository: UsuarioRepository;
@@ -113,7 +114,16 @@ export class ConteudoService {
     if (data.tipo !== undefined) updateData.tipo = data.tipo;
     if (data.titulo !== undefined) updateData.titulo = data.titulo;
     if (data.texto !== undefined) updateData.texto = data.texto;
-    if (data.imagemUrl !== undefined) updateData.imagemUrl = data.imagemUrl;
+    if (data.imagemUrl !== undefined) {
+      updateData.imagemUrl = data.imagemUrl;
+
+      // Capa antiga vira arquivo órfão no Cloudinary se não for apagada aqui.
+      const capaAntiga = conteudoExistente.imagemUrl;
+      if (capaAntiga && capaAntiga !== data.imagemUrl) {
+        const publicId = extrairPublicId(capaAntiga);
+        if (publicId) await removerImagem(publicId);
+      }
+    }
     if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
     if (data.formato !== undefined) updateData.formato = data.formato;
     if (data.principal !== undefined) updateData.principal = data.principal;

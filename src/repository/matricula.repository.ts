@@ -66,6 +66,7 @@ export class MatriculaRepository {
       select: {
         id: true,
         status: true,
+        capacidade: true,
         curso: {
           select: {
             criadorUsuarioId: true,
@@ -119,6 +120,39 @@ export class MatriculaRepository {
     return prisma.usuarioSala.count({
       where: { salaId },
     });
+  }
+
+  /**
+   * Só matrículas ativas — quem cancelou ou desistiu libera a vaga.
+   */
+  async contarParticipantesAtivos(salaId: number): Promise<number> {
+    return prisma.usuarioSala.count({
+      where: { salaId, status: "ativo" },
+    });
+  }
+
+  /** IDs de quem está ativo na turma. Usado ao encerrá-la. */
+  async listarUsuariosAtivos(salaId: number): Promise<number[]> {
+    const linhas = await prisma.usuarioSala.findMany({
+      where: { salaId, status: "ativo" },
+      select: { usuarioId: true },
+    });
+    return linhas.map((l) => l.usuarioId);
+  }
+
+  /**
+   * Marca como "concluido" todo mundo que ainda estava ativo na turma.
+   *
+   * Sem isto, encerrar a turma deixaria as matrículas penduradas em "ativo"
+   * para sempre, e o Perfil continuaria mostrando "Em andamento" num curso
+   * que já terminou.
+   */
+  async concluirMatriculasAtivas(salaId: number): Promise<number> {
+    const { count } = await prisma.usuarioSala.updateMany({
+      where: { salaId, status: "ativo" },
+      data: { status: "concluido" },
+    });
+    return count;
   }
 
   async contarHistoricoPorUsuario(usuarioId: number): Promise<number> {

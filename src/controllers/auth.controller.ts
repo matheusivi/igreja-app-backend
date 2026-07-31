@@ -64,6 +64,7 @@ export class AuthController {
         estadoCivil: usuario.estadoCivil,
         fotoUrl: usuario.fotoUrl,
         profissao: usuario.profissao,
+        batizado: usuario.batizado,
       },
     });
   };

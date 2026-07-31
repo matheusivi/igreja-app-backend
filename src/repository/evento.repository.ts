@@ -74,6 +74,20 @@ export class EventoRepository {
     });
   }
 
+  /**
+   * Desmarca o destaque de todos os eventos, exceto (opcionalmente) um.
+   * Garante que só exista um destaque na Home por vez.
+   */
+  async limparDestaques(excetoId?: number) {
+    return prisma.evento.updateMany({
+      where: {
+        destaqueHome: true,
+        ...(excetoId !== undefined ? { id: { not: excetoId } } : {}),
+      },
+      data: { destaqueHome: false },
+    });
+  }
+
   async deletar(id: number) {
     return prisma.evento.delete({ where: { id } });
   }

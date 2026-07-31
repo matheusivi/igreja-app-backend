@@ -42,6 +42,7 @@ const makePedido = (overrides = {}) => ({
     id: 1,
     nomeCompleto: "João Silva",
     perfil: "Membro",
+    fotoUrl: null,
   },
   ...overrides,
 });

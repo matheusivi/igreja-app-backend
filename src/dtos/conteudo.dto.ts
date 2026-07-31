@@ -15,7 +15,7 @@ export interface UpdateConteudoDTO {
   tipo?: 'Estudo' | 'Devocional' | 'Aviso' | 'Material' | 'Apresentacao' | undefined;
   titulo?: string | undefined;
   texto?: string | undefined;
-  imagemUrl?: string | undefined;
+  imagemUrl?: string | null | undefined;
   videoUrl?: string | undefined;
   formato?: 'texto' | 'imagem' | 'vídeo' | 'combinacao' | undefined;
   principal?: boolean | undefined;

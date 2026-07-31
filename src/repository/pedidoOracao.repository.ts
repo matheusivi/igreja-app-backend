@@ -7,6 +7,9 @@ const includeAutor = {
       id: true,
       nomeCompleto: true,
       perfil: true,
+      // Necessário para o app mostrar a foto no mural de oração; sem isto
+      // sobrava só a bolinha com as iniciais.
+      fotoUrl: true,
     },
   },
 } satisfies Prisma.PedidoOracaoInclude;

@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">30% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>3/9</span>
+                <span class='fraction'>3/10</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/6</span>
+                <span class='fraction'>0/7</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">30% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>3/9</span>
+                <span class='fraction'>3/10</span>
             </div>
         
             
@@ -129,7 +129,16 @@
 <a name='L64'></a><a href='#L64'>64</a>
 <a name='L65'></a><a href='#L65'>65</a>
 <a name='L66'></a><a href='#L66'>66</a>
-<a name='L67'></a><a href='#L67'>67</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -158,19 +167,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -183,7 +179,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -191,6 +186,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -199,68 +217,77 @@
 import { Prisma } from "@prisma/client";
 &nbsp;
 const includeAutor = {
-    autor: {
-        select: {
-            id: true,
-            nomeCompleto: true,
-            perfil: true,
-        },
+  autor: {
+    select: {
+      id: true,
+      nomeCompleto: true,
+      perfil: true,
     },
+  },
 } satisfies Prisma.PedidoOracaoInclude;
 &nbsp;
 export class PedidoOracaoRepository {
-<span class="fstat-no" title="function not covered" >    async </span>criar(data: Prisma.PedidoOracaoCreateInput) {
-<span class="cstat-no" title="statement not covered" >        return prisma.pedidoOracao.create({</span>
-            data,
-            include: includeAutor,
-        });
-    }
+<span class="fstat-no" title="function not covered" >  async </span>criar(data: Prisma.PedidoOracaoCreateInput) {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.create({</span>
+      data,
+      include: includeAutor,
+    });
+  }
 &nbsp;
-<span class="fstat-no" title="function not covered" >    async </span>buscarPorId(id: number) {
-<span class="cstat-no" title="statement not covered" >        return prisma.pedidoOracao.findUnique({</span>
-            where: { id },
-            include: includeAutor,
-        });
-    }
+<span class="fstat-no" title="function not covered" >  async </span>buscarPorId(id: number) {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.findUnique({</span>
+      where: { id },
+      include: includeAutor,
+    });
+  }
 &nbsp;
-<span class="fstat-no" title="function not covered" >    async </span>buscarParaPermissao(id: number): Promise&lt;{ id: number; autorUsuarioId: number } | null&gt; {
-<span class="cstat-no" title="statement not covered" >        return prisma.pedidoOracao.findUnique({</span>
-            where: { id },
-            select: {
-                id: true,
-                autorUsuarioId: true,
-            },
-        });
-    }
+<span class="fstat-no" title="function not covered" >  async </span>buscarParaPermissao(
+    id: number,
+  ): Promise&lt;{ id: number; autorUsuarioId: number } | null&gt; {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.findUnique({</span>
+      where: { id },
+      select: {
+        id: true,
+        autorUsuarioId: true,
+      },
+    });
+  }
 &nbsp;
-<span class="fstat-no" title="function not covered" >    async </span>listar(params: {
-        where?: Prisma.PedidoOracaoWhereInput;
-        orderBy?: Prisma.PedidoOracaoOrderByWithRelationInput;
-        take?: number;
-        skip?: number;
-    }) {
-<span class="cstat-no" title="statement not covered" >        return prisma.pedidoOracao.findMany({</span>
-            ...(params.where !== undefined &amp;&amp; { where: params.where }),
-            ...(params.orderBy !== undefined &amp;&amp; { orderBy: params.orderBy }),
-            ...(params.take !== undefined &amp;&amp; { take: params.take }),
-            ...(params.skip !== undefined &amp;&amp; { skip: params.skip }),
-            include: includeAutor,
-        });
-    }
+<span class="fstat-no" title="function not covered" >  async </span>listar(params: {
+    where?: Prisma.PedidoOracaoWhereInput;
+    orderBy?: Prisma.PedidoOracaoOrderByWithRelationInput;
+    take?: number;
+    skip?: number;
+  }) {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.findMany({</span>
+      ...(params.where !== undefined &amp;&amp; { where: params.where }),
+      ...(params.orderBy !== undefined &amp;&amp; { orderBy: params.orderBy }),
+      ...(params.take !== undefined &amp;&amp; { take: params.take }),
+      ...(params.skip !== undefined &amp;&amp; { skip: params.skip }),
+      include: includeAutor,
+    });
+  }
 &nbsp;
-<span class="fstat-no" title="function not covered" >    async </span>contar(where?: Prisma.PedidoOracaoWhereInput): Promise&lt;number&gt; {
-<span class="cstat-no" title="statement not covered" >  return prisma.pedidoOracao.count({</span>
-    ...(where !== undefined &amp;&amp; { where }),
-  });
+<span class="fstat-no" title="function not covered" >  async </span>atualizar(id: number, descricaoPedido: string) {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.update({</span>
+      where: { id },
+      data: { descricaoPedido },
+      include: includeAutor,
+    });
+  }
+&nbsp;
+<span class="fstat-no" title="function not covered" >  async </span>contar(where?: Prisma.PedidoOracaoWhereInput): Promise&lt;number&gt; {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.count({</span>
+      ...(where !== undefined &amp;&amp; { where }),
+    });
+  }
+&nbsp;
+<span class="fstat-no" title="function not covered" >  async </span>deletar(id: number) {
+<span class="cstat-no" title="statement not covered" >    return prisma.pedidoOracao.delete({</span>
+      where: { id },
+    });
+  }
 }
-&nbsp;
-<span class="fstat-no" title="function not covered" >    async </span>deletar(id: number) {
-<span class="cstat-no" title="statement not covered" >        return prisma.pedidoOracao.delete({</span>
-            where: { id },
-        });
-    }
-}
-&nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -268,7 +295,7 @@ export class PedidoOracaoRepository {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-11T21:50:52.996Z
+                at 2026-07-03T21:20:51.360Z
             </div>
         <script src="../prettify.js"></script>
         <script>

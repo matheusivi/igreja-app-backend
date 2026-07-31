@@ -2,10 +2,14 @@
 import type { Response } from "express";
 import { SalaService } from "../services/sala.services";
 import type { AuthRequest } from "../middlewares/auth.middleware";
+// Os schemas de sala vivem em sala.validation. Este controller importava de
+// curso.validation, que tinha uma cópia antiga com os MESMOS nomes — e ela
+// exigia data no formato "YYYY-MM-DD". Nome duplicado em dois arquivos é
+// invisível no import: dá para editar o schema errado por horas sem efeito.
 import {
   CreateSalaSchema,
   UpdateSalaSchema,
-} from "../validation/curso.validation";
+} from "../validation/sala.validation";
 import type { CreateSalaDTO, UpdateSalaDTO } from "../dtos/sala.dto";
 import { AppError } from "../utils/AppError";
 
@@ -56,7 +60,8 @@ export class SalaController {
   };
 
   public list = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { cursoId, busca, limit, page, cursoNome, liderNome } = req.query;
+    const { cursoId, busca, limit, page, cursoNome, liderNome, status } =
+      req.query;
     const sexoUsuario = req.user!.sexo;
 
     const resultado = await this.salaService.list(
@@ -65,6 +70,7 @@ export class SalaController {
         ...(busca ? { busca: String(busca) } : {}),
         ...(cursoNome ? { cursoNome: String(cursoNome) } : {}),
         ...(liderNome ? { liderNome: String(liderNome) } : {}),
+        ...(status ? { status: String(status) } : {}),
         ...(limit ? { limit: Number(limit) } : {}),
         ...(page ? { page: Number(page) } : {}),
       },

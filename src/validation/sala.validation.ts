@@ -11,6 +11,12 @@ export const CreateSalaSchema = z.object({
   dataInicio: z.iso.datetime({ message: 'Data de início inválida' }).optional(),
   dataFim: z.iso.datetime({ message: 'Data de término inválida' }).optional(),
 
+  // Null explícito significa "sem limite de vagas".
+  capacidade: z.union([
+    z.number().int().positive('A capacidade deve ser maior que zero'),
+    z.null(),
+  ]).optional(),
+
 }).refine(
   (data) => {
     if (data.dataInicio && data.dataFim) {
@@ -37,6 +43,11 @@ export const UpdateSalaSchema = z.object({
   status: z.enum(['ativa', 'inativa', 'concluída'], {
     error: 'Status inválido',
   }).optional(),
+
+  capacidade: z.union([
+    z.number().int().positive('A capacidade deve ser maior que zero'),
+    z.null(),
+  ]).optional(),
 
 }).refine(
   (data) => {

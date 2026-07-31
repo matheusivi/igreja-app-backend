@@ -40,6 +40,7 @@ export interface AniversariantesDiaResponse {
     id: number;
     nomeCompleto: string;
     fotoUrl: string | null;
+    perfil: string;
   }[];
 }
 

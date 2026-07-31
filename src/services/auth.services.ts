@@ -12,6 +12,7 @@ import { AppError } from "../utils/AppError";
 import { TokenRevogadoRepository } from "../repository/tokenRevogado.repository";
 import { PasswordResetTokenRepository } from "../repository/passwordResetToken.repository";
 import { enviarEmailRecuperacaoSenha } from "../lib/email";
+import { extrairPublicId, removerImagem } from "../lib/cloudinary";
 
 export interface TokenPayload {
   id: number;
@@ -152,10 +153,19 @@ export class AuthService {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) throw new AppError("Usuário não encontrado.", 404);
 
+    const fotoAntiga = usuario.fotoUrl;
+
     const usuarioAtualizado = await this.usuarioRepository.atualizarDados(
       usuarioId,
       data,
     );
+
+    // Trocou (ou removeu) a foto? Apaga a anterior no Cloudinary, senão o
+    // espaço fica ocupado para sempre por imagens que ninguém mais vê.
+    if (data.fotoUrl !== undefined && fotoAntiga && data.fotoUrl !== fotoAntiga) {
+      const publicId = extrairPublicId(fotoAntiga);
+      if (publicId) await removerImagem(publicId);
+    }
 
     return usuarioAtualizado;
   }

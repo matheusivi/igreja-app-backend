@@ -2,6 +2,22 @@ import { z } from 'zod';
 
 const CategoriasCurso = ['Homens', 'Mulheres', 'Casais', 'Jovens', 'Geral', 'Batismo'] as const;
 
+/** Um item da ementa do curso. `ordem` é o número da semana/aula. */
+const CapituloSchema = z.object({
+  ordem: z.number().int().min(1, 'A ordem deve começar em 1'),
+  titulo: z.string()
+    .min(2, 'O título do capítulo deve ter pelo menos 2 caracteres')
+    .max(300, 'O título do capítulo não pode ter mais de 300 caracteres')
+    .trim(),
+  secao: z.string().max(120).trim().optional().nullable(),
+});
+
+/** Ementa completa. Máximo generoso: o maior curso da lista tem 19 aulas. */
+const CapitulosSchema = z.array(CapituloSchema).max(60, 'Ementa muito longa');
+
+const duracaoSchema = z.string().max(60).trim().optional().nullable();
+const publicoAlvoSchema = z.string().max(200).trim().optional().nullable();
+
 export const CreateCursoSchema = z.object({
   nome: z.string()
     .min(3, 'O nome do curso deve ter pelo menos 3 caracteres')
@@ -17,36 +33,12 @@ export const CreateCursoSchema = z.object({
   categoria: z.enum(CategoriasCurso, {
     error: 'Categoria inválida. Use: Homens, Mulheres, Casais, Jovens ou Geral',
   }),
+
+  duracao: duracaoSchema,
+  publicoAlvo: publicoAlvoSchema,
+  capitulos: CapitulosSchema.optional(),
 });
 
-export const CreateSalaSchema = z.object({
-  cursoId: z.number({
-    message: "O ID do curso é obrigatório e deve ser um número"
-  }).positive("ID do curso deve ser maior que zero"),
-
-  nomeSala: z.string()
-    .min(3, "O nome da sala deve ter pelo menos 3 caracteres")
-    .max(150, "O nome da sala não pode ter mais de 150 caracteres")
-    .trim(),
-
-  dataInicio: z.iso.date({ message: "Data de início inválida" })
-    .optional(),
-
-  dataFim: z.iso.date({ message: "Data de fim inválida" })
-    .optional(),
-
-}).refine(
-  (data) => {
-    if (data.dataInicio && data.dataFim) {
-      return new Date(data.dataInicio) <= new Date(data.dataFim);
-    }
-    return true;
-  },
-  {
-    message: 'A data de término não pode ser anterior à data de início',
-    path: ['dataFim'],
-  }
-);
 
 export const UpdateCursoSchema = z.object({
   nome: z.string()
@@ -64,40 +56,16 @@ export const UpdateCursoSchema = z.object({
   categoria: z.enum(CategoriasCurso, {
     error: 'Categoria inválida. Use: Homens, Mulheres, Casais, Jovens ou Geral',
   }).optional(),
+
+  duracao: duracaoSchema,
+  publicoAlvo: publicoAlvoSchema,
+  capitulos: CapitulosSchema.optional(),
 });
 
 export type CreateCursoInput = z.infer<typeof CreateCursoSchema>;
 export type UpdateCursoInput = z.infer<typeof UpdateCursoSchema>;
-export type CreateSalaInput = z.infer<typeof CreateSalaSchema>;
+// Os schemas e tipos de sala ficam em sala.validation.ts.
 
-export const UpdateSalaSchema = z.object({
-  nomeSala: z.string()
-    .min(3, "O nome da sala deve ter pelo menos 3 caracteres")
-    .max(150, "O nome da sala não pode ter mais de 150 caracteres")
-    .trim()
-    .optional(),
-
-  dataInicio: z.string().optional(),
-  dataFim: z.string().optional(),
-
-  status: z.enum(['ativa', 'inativa', 'concluída'], {
-    error: 'Status inválido. Use: ativa, inativa ou concluída',
-  }).optional(),
-
-}).refine(
-  (data) => {
-    if (data.dataInicio && data.dataFim) {
-      return new Date(data.dataInicio) <= new Date(data.dataFim);
-    }
-    return true;
-  },
-  {
-    message: 'A data de término não pode ser anterior à data de início',
-    path: ['dataFim'],
-  }
-);
-
-export type UpdateSalaInput = z.infer<typeof UpdateSalaSchema>;
 
 export const IdParamSchema = z.coerce.number().int().positive("ID inválido");
 

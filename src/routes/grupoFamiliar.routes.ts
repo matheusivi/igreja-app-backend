@@ -9,7 +9,13 @@ router.post('/', authMiddleware.authenticate, grupoFamiliarController.create);
 
 router.post('/:grupoId/convidar', authMiddleware.authenticate, grupoFamiliarController.convidar);
 
+// Não conflita com o PATCH de '/convites/:membroId/responder' logo abaixo:
+// ':grupoId' casa com um único segmento, e aquela rota tem três.
+router.patch('/:grupoId', authMiddleware.authenticate, grupoFamiliarController.update);
+
 router.patch('/convites/:membroId/responder', authMiddleware.authenticate, grupoFamiliarController.responderConvite,);
+
+router.get('/convites/pendentes', authMiddleware.authenticate, grupoFamiliarController.getConvitesPendentes);
 
 router.get('/:grupoId', authMiddleware.authenticate, grupoFamiliarController.getById);
 

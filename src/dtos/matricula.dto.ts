@@ -31,6 +31,7 @@ export interface AtualizarStatusParticipanteDTO {
 
 // ====================== HISTÓRICO DO USUÁRIO ======================
 export interface HistoricoCursoResponse {
+  salaId: number;
   cursoId: number;
   nomeCurso: string;
   categoria: string;
@@ -59,4 +60,10 @@ export interface ListarHistoricoResponse {
   total: number;
   page: number;
   totalPages: number;
+}
+
+export interface ColegaSalaResponse {
+  usuarioId: number;
+  nomeCompleto: string;
+  perfil: string;
 }

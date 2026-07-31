@@ -52,6 +52,12 @@ export const UpdateMeSchema = z.object({
     .trim()
     .optional(),
 
+  sexo: z
+    .enum(["Masculino", "Feminino"], {
+      error: "Sexo deve ser Masculino ou Feminino",
+    })
+    .optional(),
+
   dataNascimento: z.iso
     .date({ message: "Data de nascimento inválida" })
     .optional(),
@@ -70,7 +76,9 @@ export const UpdateMeSchema = z.object({
 
   exibirAniversario: z.boolean().optional(),
 
-  fotoUrl: z.url("URL da foto inválida").optional(),
+  // null é aceito de propósito: é assim que o app remove a foto de perfil.
+  // Só `optional()` não bastaria — campo ausente significa "não mexer".
+  fotoUrl: z.union([z.url("URL da foto inválida"), z.null()]).optional(),
 });
 
 export const AtualizarPerfilSchema = z.object({

@@ -74,7 +74,12 @@ export class UsuarioService {
     // agrupar por dia
     const porDia = new Map<
       number,
-      { id: number; nomeCompleto: string; fotoUrl: string | null }[]
+      {
+        id: number;
+        nomeCompleto: string;
+        fotoUrl: string | null;
+        perfil: string;
+      }[]
     >();
 
     for (const usuario of resultados) {
@@ -84,6 +89,7 @@ export class UsuarioService {
         id: usuario.id,
         nomeCompleto: usuario.nomeCompleto,
         fotoUrl: usuario.fotoUrl,
+        perfil: usuario.perfil,
       });
     }
 

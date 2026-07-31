@@ -83,11 +83,12 @@ export class UsuarioRepository {
     id: number,
     data: {
       nomeCompleto?: string | undefined;
+      sexo?: string | undefined;
       dataNascimento?: string | undefined;
       estadoCivil?: string | undefined;
       profissao?: string | undefined;
       exibirAniversario?: boolean | undefined;
-      fotoUrl?: string | undefined;
+      fotoUrl?: string | null | undefined;
     },
   ) {
     return this.prisma.usuario.update({
@@ -96,6 +97,7 @@ export class UsuarioRepository {
         ...(data.nomeCompleto !== undefined && {
           nomeCompleto: data.nomeCompleto,
         }),
+        ...(data.sexo !== undefined && { sexo: data.sexo }),
         ...(data.dataNascimento !== undefined && {
           dataNascimento: new Date(data.dataNascimento),
         }),
@@ -119,6 +121,9 @@ export class UsuarioRepository {
         estadoCivil: true,
         fotoUrl: true,
         profissao: true,
+        // Sem isto o app perdia o `batizado` toda vez que o perfil era salvo,
+        // e o selo "Batizado" sumia da tela de Perfil.
+        batizado: true,
       },
     });
   }
@@ -154,10 +159,11 @@ export class UsuarioRepository {
         id: number;
         nomeCompleto: string;
         fotoUrl: string | null;
+        perfil: string;
         dia: number;
       }[]
     >`
-    SELECT id, "nomeCompleto", "fotoUrl",
+    SELECT id, "nomeCompleto", "fotoUrl", perfil,
            EXTRACT(DAY FROM "dataNascimento")::int AS dia
     FROM usuarios
     WHERE EXTRACT(MONTH FROM "dataNascimento") = ${mes}
@@ -170,6 +176,15 @@ export class UsuarioRepository {
   async marcarBatizado(id: number): Promise<void> {
     await this.prisma.usuario.update({
       where: { id },
+      data: { batizado: true },
+    });
+  }
+
+  /** Versão em lote — usada ao encerrar uma turma de Batismo inteira. */
+  async marcarBatizadosEmLote(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.prisma.usuario.updateMany({
+      where: { id: { in: ids } },
       data: { batizado: true },
     });
   }

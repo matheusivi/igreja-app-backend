@@ -2,31 +2,36 @@
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 
-// Selects com tipagem correta
-const includeCurso = {
+/**
+ * Curso + líder + contagem de matrículas ativas.
+ *
+ * O `_count` é filtrado por status "ativo" de propósito: quem cancelou ou
+ * desistiu não ocupa vaga, então contar todas as linhas daria uma lotação
+ * falsa e bloquearia turmas que na verdade têm lugar.
+ */
+const includeCompleto = {
   curso: {
     select: {
       id: true,
       nome: true,
     },
   },
-} satisfies Prisma.SalaCursoInclude;
-
-const includeCursoComCriador = {
-  curso: {
-    include: {
-      criador: {
-        select: {
-          id: true,
-          nomeCompleto: true,
-          perfil: true,
-        },
-      },
+  lider: {
+    select: {
+      id: true,
+      nomeCompleto: true,
+      fotoUrl: true,
+    },
+  },
+  _count: {
+    select: {
+      participantes: { where: { status: "ativo" } },
     },
   },
 } satisfies Prisma.SalaCursoInclude;
 
 const includeCursoComCategoria = {
+  ...includeCompleto,
   curso: {
     select: {
       id: true,
@@ -51,7 +56,7 @@ export class SalaCursoRepository {
   async criar(data: Prisma.SalaCursoCreateInput) {
     return prisma.salaCurso.create({
       data,
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 
@@ -61,7 +66,7 @@ export class SalaCursoRepository {
   async buscarPorId(id: number) {
     return prisma.salaCurso.findUnique({
       where: { id },
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 
@@ -101,7 +106,7 @@ export class SalaCursoRepository {
     skip?: number;
   }) {
     const query: Prisma.SalaCursoFindManyArgs = {
-      include: includeCursoComCriador,
+      include: includeCompleto,
     };
 
     if (params.where) query.where = params.where;
@@ -125,7 +130,7 @@ export class SalaCursoRepository {
     return prisma.salaCurso.update({
       where: { id },
       data,
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 

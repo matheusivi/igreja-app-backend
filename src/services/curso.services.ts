@@ -39,9 +39,19 @@ export class CursoService {
       nome: data.nome,
       descricaoMaterial: data.descricaoMaterial || null,
       categoria: data.categoria,
+      duracao: data.duracao || null,
+      publicoAlvo: data.publicoAlvo || null,
     });
 
-    return this.formatarResponse(novoCurso);
+    if (data.capitulos?.length) {
+      await this.cursoRepository.substituirCapitulos(
+        novoCurso.id,
+        data.capitulos,
+      );
+    }
+
+    // Relê para a resposta já sair com a ementa gravada.
+    return this.getById(novoCurso.id);
   }
 
   public async getById(cursoId: number): Promise<CursoResponse> {
@@ -112,9 +122,17 @@ public async list(filters: ListCursosQuery = {}): Promise<ListarCursosResponse> 
   if (data.nome !== undefined) updateData.nome = data.nome;
   if (data.descricaoMaterial !== undefined) updateData.descricaoMaterial = data.descricaoMaterial;
   if (data.categoria !== undefined) updateData.categoria = data.categoria;
+  if (data.duracao !== undefined) updateData.duracao = data.duracao;
+  if (data.publicoAlvo !== undefined) updateData.publicoAlvo = data.publicoAlvo;
 
-  const cursoAtualizado = await this.cursoRepository.atualizar(cursoId, updateData);
-  return this.formatarResponse(cursoAtualizado);
+  await this.cursoRepository.atualizar(cursoId, updateData);
+
+  // Campo ausente = "não mexer na ementa". Lista vazia = "apagar a ementa".
+  if (data.capitulos !== undefined) {
+    await this.cursoRepository.substituirCapitulos(cursoId, data.capitulos);
+  }
+
+  return this.getById(cursoId);
 }
 
 public async delete(
@@ -134,12 +152,18 @@ public async delete(
     throw new AppError('Você não tem permissão para excluir este curso.', 403);
   }
 
-  const alunosAtivos = await this.cursoRepository.contarAlunosAtivos(cursoId);
-  if (alunosAtivos > 0) {
-    throw new AppError(
-      'Este curso não pode ser excluído pois há alunos com matrículas ativas. Encerre as salas antes de excluir.',
-      409,
-    );
+  // Excluir um curso derruba turmas e matrículas em cascata — some o registro
+  // de quem estudou o quê, sem volta. Por isso só o Administrador pode fazer
+  // isso quando já existe histórico. Pastor e líder excluem apenas cursos que
+  // ninguém chegou a cursar (cadastro errado, teste, duplicata).
+  if (perfil !== Perfis.ADMINISTRADOR) {
+    const matriculas = await this.cursoRepository.contarMatriculas(cursoId);
+    if (matriculas > 0) {
+      throw new AppError(
+        `Este curso já tem ${matriculas} matrícula(s) registradas. Excluí-lo apagaria o histórico de quem participou, e só o administrador pode fazer isso.`,
+        403,
+      );
+    }
   }
 
   await this.cursoRepository.deletar(cursoId);
@@ -151,6 +175,9 @@ public async delete(
       nome: curso.nome,
       descricaoMaterial: curso.descricaoMaterial || undefined,
       categoria: curso.categoria,
+      duracao: curso.duracao,
+      publicoAlvo: curso.publicoAlvo,
+      capitulos: curso.capitulos ?? [],
       criador: {
         id: curso.criador?.id ?? 0,
         nomeCompleto: curso.criador?.nomeCompleto ?? "",
