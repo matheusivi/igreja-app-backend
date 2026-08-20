@@ -1,2 +1,14 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# ═══ ESTES PRECISAM DE LF, SEMPRE ═══
+# Você edita no Windows, onde a quebra de linha é CRLF. Dentro do contêiner,
+# Linux, um `#!/bin/sh` seguido de `\r` faz o kernel procurar um interpretador
+# chamado "/bin/sh\r" — que não existe. O erro é `exec format error` ou
+# "no such file or directory" apontando para um arquivo que está bem ali.
+#
+# É um dos erros mais difíceis de enxergar, porque o arquivo parece correto em
+# qualquer editor. Forçar LF aqui resolve na origem.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-entrypoint.sh text eol=lf

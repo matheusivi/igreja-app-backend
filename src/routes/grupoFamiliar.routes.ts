@@ -7,6 +7,12 @@ const grupoFamiliarController = new GrupoFamiliarController();
 
 router.post('/', authMiddleware.authenticate, grupoFamiliarController.create);
 
+// Antes de '/:grupoId': o Express casa na ordem de registro, e uma rota com
+// parâmetro no primeiro segmento engoliria qualquer GET na raiz que viesse
+// depois. Aqui não colide (a raiz não tem segmento), mas manter a listagem no
+// topo evita a armadilha quando alguém acrescentar '/buscar' amanhã.
+router.get('/', authMiddleware.authenticate, grupoFamiliarController.listar);
+
 router.post('/:grupoId/convidar', authMiddleware.authenticate, grupoFamiliarController.convidar);
 
 // Não conflita com o PATCH de '/convites/:membroId/responder' logo abaixo:
@@ -20,6 +26,11 @@ router.get('/convites/pendentes', authMiddleware.authenticate, grupoFamiliarCont
 router.get('/:grupoId', authMiddleware.authenticate, grupoFamiliarController.getById);
 
 router.get('/usuario/:usuarioId', authMiddleware.authenticate, grupoFamiliarController.getByUsuario);
+
+// Endereça o vínculo por pessoa+grupo, e não pelo id da linha de
+// `membros_familia` — esse número só o banco conhece, e a tela já tem os
+// dois que importam.
+router.patch('/:grupoId/membros/:usuarioId/papel', authMiddleware.authenticate, grupoFamiliarController.atualizarPapel);
 
 router.delete('/:grupoId/membros/:usuarioId', authMiddleware.authenticate, grupoFamiliarController.removerMembro);
 

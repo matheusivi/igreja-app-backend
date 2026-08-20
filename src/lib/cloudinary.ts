@@ -29,7 +29,15 @@ if (cloudName && apiKey && apiSecret) {
 }
 
 /** Pastas separadas para facilitar organização e limpeza no painel. */
-export type PastaUpload = "perfis" | "eventos" | "conteudos" | "familias";
+export type PastaUpload =
+  | "perfis"
+  | "eventos"
+  | "conteudos"
+  | "familias"
+  // Capa do topo da Home. Pasta própria porque é UMA imagem para a igreja
+  // inteira — misturá-la com as de evento tornaria impossível achá-la no
+  // painel do Cloudinary no dia em que alguém precisar.
+  | "hero";
 
 export type ResultadoUpload = {
   url: string;

@@ -8,7 +8,11 @@ import { prisma } from "./src/lib/prisma";
 import { logger } from "./src/lib/logger";
 import { cloudinaryConfigurado } from "./src/lib/cloudinary";
 
-import { authLimiter, generalLimiter } from "./src/middlewares/rateLimiter";
+import {
+  cadastroLimiter,
+  generalLimiter,
+  loginLimiter,
+} from "./src/middlewares/rateLimiter";
 import { requestLogger } from "./src/middlewares/requestLogger.middleware";
 import { errorHandler } from "./src/middlewares/error.middleware";
 import { TokenRevogadoRepository } from "./src/repository/tokenRevogado.repository";
@@ -24,12 +28,27 @@ import { grupoFamiliarRoutes } from "./src/routes/grupoFamiliar.routes";
 import { usuarioRoutes } from "./src/routes/usuario.routes";
 import { eventoRoutes } from "./src/routes/evento.routes";
 import { uploadRoutes } from "./src/routes/upload.routes";
+import { configuracaoRoutes } from "./src/routes/configuracao.routes";
+import { leituraPlanoRoutes } from "./src/routes/leituraPlano.routes";
 
 // ======================
 // Aplicação
 // ======================
 const app = express();
 const PORT = env.PORT || 3000;
+
+/**
+ * Confiar no proxy que está imediatamente à frente (Nginx, na VPS).
+ *
+ * Sem isto, o Express enxerga o IP do proxy em toda requisição e trata a
+ * internet inteira como um único cliente — o limitador de requisições
+ * bloquearia a igreja toda de uma vez.
+ *
+ * O valor é 1, e não `true`: confiar em todos os proxies deixaria qualquer um
+ * forjar o cabeçalho `X-Forwarded-For` e se passar por outro IP. Em
+ * desenvolvimento não há proxy nenhum, e a configuração é inofensiva.
+ */
+app.set("trust proxy", 1);
 
 // ======================
 // Segurança
@@ -61,8 +80,11 @@ const passwordResetTokenRepository = new PasswordResetTokenRepository();
 // ======================
 // Rate Limiting por Rota
 // ======================
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
+// Um limitador POR ROTA, e não o mesmo nas duas: instância única de
+// `rateLimit()` significa CONTADOR único, então login e cadastro dividiam as
+// mesmas fichas. Quem se cadastrava gastava o orçamento de quem ia entrar.
+app.use("/api/auth/login", loginLimiter);
+app.use("/api/auth/register", cadastroLimiter);
 
 // ======================
 // Rotas da API
@@ -74,8 +96,10 @@ app.use("/api/cursos", cursoRoutes);
 app.use("/api/salas", salaRoutes);
 app.use("/api/matriculas", matriculaRoutes);
 app.use("/api/pedido-oracao", pedidoOracaoRoutes);
+app.use("/api/configuracao", configuracaoRoutes);
 app.use("/api/familias", grupoFamiliarRoutes);
 app.use("/api/eventos", eventoRoutes);
+app.use("/api/plano-leitura", leituraPlanoRoutes);
 app.use("/api/upload", uploadRoutes);
 
 // ======================

@@ -11,7 +11,12 @@ import { prisma } from "../src/lib/prisma";
 
 type CursoSeed = {
   nome: string;
-  categoria: "Homens" | "Mulheres" | "Geral" | "Batismo";
+  /**
+   * As seis que o app já conhece. A tela de lista tem filtro para cada uma e
+   * as telas de criar/editar curso oferecem as seis — acrescentar uma sétima
+   * aqui cadastraria um curso que não aparece em filtro nenhum.
+   */
+  categoria: "Homens" | "Mulheres" | "Casais" | "Jovens" | "Geral" | "Batismo";
   /** Opcional: nem todo curso tem duração divulgada. */
   duracao?: string;
   publicoAlvo?: string;
@@ -128,28 +133,7 @@ const CURSOS: CursoSeed[] = [
       { titulo: "A Sociedade dos Que Não se Envergonham" },
     ],
   },
-  {
-    nome: "Coragem",
-    categoria: "Homens",
-    duracao: "10 a 13 semanas",
-    publicoAlvo: "Homens, com ênfase em jovens",
-    descricaoMaterial:
-      "Curso voltado principalmente para homens jovens. Trabalha coragem, " +
-      "pureza sexual, disciplina, perseverança, identidade e como vencer as " +
-      "batalhas da juventude com firmeza e ousadia.",
-    capitulos: [
-      { titulo: "Não despreze a sua mocidade" },
-      { titulo: "Coragem" },
-      { titulo: "“Bananas”" },
-      { titulo: "Sexo" },
-      { titulo: "Como experimentar libertação" },
-      { titulo: "O homem invisível" },
-      { titulo: "Muito trabalho, pouco resultado" },
-      { titulo: "Ceder, curvar-se ou morrer queimado" },
-      { titulo: "“Escreva na sua bermuda!”" },
-      { titulo: "Os vencedores são aqueles que nunca desistem" },
-    ],
-  },
+  // Coragem saiu daqui para a categoria Geral — está mais abaixo.
   {
     nome: "Minha Mulher Única",
     categoria: "Homens",
@@ -183,10 +167,11 @@ const CURSOS: CursoSeed[] = [
     duracao: "13 semanas",
     publicoAlvo: "Mulheres",
     descricaoMaterial:
-      "Curso principal para mulheres. Ensina a mulher a entender sua " +
-      "singularidade, identidade em Deus, o valor da submissão bíblica, " +
-      "pureza, maturidade emocional e espiritual, e como ser uma esposa e " +
-      "mulher segundo o padrão de Deus.",
+      "O curso é dirigido a mulheres e aborda temas como autoestima, valor, " +
+      "feminilidade e responsabilidade. Nosso desejo é que Deus a liberte e " +
+      "dê vida abundante em toda a sua plenitude, causando grande impacto na " +
+      "família e na sociedade, através de sua originalidade, identidade e " +
+      "singularidade.",
     capitulos: [
       { titulo: "A singularidade (ou originalidade) da mulher" },
       { titulo: "Uma mulher de Deus" },
@@ -208,7 +193,11 @@ const CURSOS: CursoSeed[] = [
     duracao: "11 semanas por módulo",
     publicoAlvo: "Mulheres",
     descricaoMaterial:
-      "Histórias de mulheres da Bíblia. A lista de personagens pode variar conforme o material oficial da turma.",
+      "Curso que conta a história de várias mulheres da Bíblia e direciona " +
+      "essas lições de vida para os dias atuais, para serem aplicadas em cada " +
+      "realidade vivenciada. Direciona as mulheres a terem encontros com " +
+      "Jesus, para serem fortalecidas, renovadas e reabastecidas.\n\n" +
+      "A lista de personagens pode variar conforme o material oficial da turma.",
     capitulos: [
       { titulo: "Sara", secao: "Módulo 1" },
       { titulo: "Dorcas", secao: "Módulo 1" },
@@ -240,6 +229,91 @@ const CURSOS: CursoSeed[] = [
       { titulo: "Legado que deixará aos filhos" },
       { titulo: "Relação íntima com Deus" },
     ],
+  },
+
+  // ===================== CASAIS =====================
+  // Categoria nova no seed, mas já existente no app: as telas de filtro,
+  // criação e edição de curso já listam "Casais". Não precisa de migração —
+  // `categoria` é texto livre no banco.
+  //
+  // Diferente de Homens e Mulheres, Casais NÃO bloqueia inscrição: qualquer
+  // pessoa consegue entrar. A restrição real destes cursos é a metodologia
+  // (casal inscrito junto, líder capacitado), e isso é combinado na turma.
+  {
+    nome: "Aliança",
+    categoria: "Casais",
+    duracao: "10 semanas",
+    publicoAlvo: "Casais",
+    descricaoMaterial:
+      "Por que há tantos conflitos e desentendimentos? Como evitar que " +
+      "resultem numa separação? Compreendendo o verdadeiro valor da aliança, " +
+      "a importância da oração, do perdão e da transparência do casal, " +
+      "entenderão a necessidade de uma comunicação franca e constante para " +
+      "que todos os aspectos do casamento sejam saudáveis, agradáveis e o " +
+      "amor realmente perdure até o fim.\n\n" +
+      "Metodologia: grupos de até 6 casais, com encontros semanais, " +
+      "conduzidos por um casal líder capacitado pela Universidade da Família.",
+  },
+  {
+    nome: "Dinheiro e Casamento à Maneira de Deus",
+    categoria: "Casais",
+    duracao: "6 semanas",
+    publicoAlvo: "Casais",
+    descricaoMaterial:
+      "Por meio desse estudo os casais aprenderão o que Deus diz sobre " +
+      "dinheiro, como integrar isso às suas vidas para desfrutar de um " +
+      "casamento maravilhoso e de finanças mais saudáveis. Deus pretende que " +
+      "os casais usem o dinheiro e até mesmo os desafios e as crises " +
+      "financeiras para torná-los mais próximos, não para separá-los. " +
+      "Infelizmente, muitos casais têm experimentado o dinheiro como um " +
+      "obstáculo que os separa, mas Deus pretende que isso seja como um laço " +
+      "que firme o amor de um pelo outro.",
+  },
+  {
+    nome: "Educação de Filhos à Maneira de Deus",
+    categoria: "Casais",
+    duracao: "17 semanas",
+    publicoAlvo: "Pais e mães",
+    descricaoMaterial:
+      "Repleto de textos e princípios bíblicos, este curso é reconhecido " +
+      "como pioneiro para pais e mães cristãos, tendo como propósito " +
+      "apoiá-los no exercício de uma paternidade baseada nos ensinos da " +
+      "palavra de Deus, encorajando-os a trabalhar não somente no " +
+      "comportamento externo de seus filhos, mas sobretudo nas atitudes do " +
+      "coração.",
+  },
+  {
+    nome: "Como Proteger a Pureza de Seus Filhos",
+    categoria: "Casais",
+    duracao: "9 semanas",
+    publicoAlvo: "Pais e mães",
+    descricaoMaterial:
+      "Como Proteger a Pureza de Seus Filhos aborda a educação sexual das " +
+      "crianças de maneira prática, proporcionando aos pais confiança e " +
+      "conhecimento para ensinar as verdades biológicas e bíblicas com a " +
+      "dosagem e abordagem adequadas. A cada semana, o curso apresenta " +
+      "princípios e métodos de treinamento moral e proteção dos filhos " +
+      "contra as influências perniciosas que podem adentrar o lar.",
+  },
+  {
+    nome: "Romance à Maneira de Deus",
+    categoria: "Casais",
+    duracao: "10 semanas",
+    // A metodologia é pai/mãe COM um filho, não marido e mulher. Mantive em
+    // Casais como você pediu, mas o público-alvo diz o que a inscrição
+    // realmente é, para ninguém se inscrever esperando um curso de casal.
+    publicoAlvo: "Pais com um filho ou filha",
+    descricaoMaterial:
+      "Jovens e adolescentes estão perdendo a identidade, o valor e a " +
+      "consciência de destino (propósito) por causa de influências " +
+      "inadequadas, conceitos inapropriados, visão de mundo distorcida e " +
+      "mídias tendenciosas, entre outros. Neste curso, pais e filhos terão " +
+      "oportunidade de desenvolver, juntos, um diálogo sincero que irá " +
+      "proporcionar maior amizade e cuidado, preparando-os para um casamento " +
+      "duradouro e saudável.\n\n" +
+      "Metodologia: grupos de até 6 pais com um filho(a), com encontros " +
+      "semanais, conduzidos por um casal líder capacitado pela Universidade " +
+      "da Família.",
   },
 
   // ===================== GERAL =====================
@@ -310,7 +384,7 @@ const CURSOS: CursoSeed[] = [
   },
   {
     nome: "O Poder do Potencial",
-    categoria: "Homens",
+    categoria: "Geral",
     descricaoMaterial:
       "Baseado no livro de Edwin Louis Cole. Princípios destacados pela UDF: " +
       "fortalecer qualidades e virtudes; viver acima das injustiças e críticas; " +
@@ -341,7 +415,12 @@ const CURSOS: CursoSeed[] = [
     categoria: "Geral",
     duracao: "7 semanas",
     descricaoMaterial:
-      "Os temas abaixo são os assuntos tratados no curso. A divisão oficial " +
+      "Compreender o porquê de Deus ter nos criado como seres sexuais e " +
+      "descobrir o prazer de honrar esse precioso dom. Independentemente de " +
+      "quem você seja — jovem ou adulto, solteiro ou casado — este curso " +
+      "contém ensinamentos renovados para sanar quaisquer dúvidas sobre o " +
+      "tema.\n\n" +
+      "Os temas listados são os assuntos tratados no curso. A divisão oficial " +
       "semana a semana está no material do líder capacitado pela UDF.",
     capitulos: [
       { titulo: "Propósito de Deus para a sexualidade" },
@@ -369,6 +448,63 @@ const CURSOS: CursoSeed[] = [
       { titulo: "O caráter conta" },
       { titulo: "A natureza do dinheiro" },
       { titulo: "Mantenha o que você obtém" },
+    ],
+  },
+  {
+    nome: "Estudo Financeiro Bíblico - Crown",
+    categoria: "Geral",
+    duracao: "10 semanas",
+    descricaoMaterial:
+      "Os princípios financeiros de Deus são muito mais do que livrar-se de " +
+      "dívidas e viver dentro de um orçamento. Seu desejo é que cada um de " +
+      "nós cresça em nossa compreensão de Seu propósito para tudo o que " +
+      "somos e tudo o que temos. Nossos recursos nunca foram destinados a " +
+      "ser sobre nós. Podemos pensar que possuir mais coisas nos deixa " +
+      "felizes, mas nosso Pai amoroso sabe que só experimentaremos o " +
+      "verdadeiro propósito e a verdadeira liberdade financeira quando " +
+      "entendermos que Ele é o dono de tudo e que somos simplesmente os " +
+      "administradores de tudo o que Ele nos confiou.",
+  },
+  {
+    nome: "Como Chegar ao Fim do Mês?",
+    categoria: "Geral",
+    duracao: "4 semanas",
+    descricaoMaterial:
+      "O curso Como Chegar ao Fim do Mês nos estimula a reprogramar o estilo " +
+      "de vida e hábitos para se alcançar a prosperidade integral aliada à " +
+      "satisfação pessoal, baseando-se em princípios eternos para se " +
+      "administrar efetivamente as finanças. Neste estudo você terá " +
+      "informações e conselhos práticos para economizar, administrar, sair " +
+      "das dívidas e planejar sua liberdade financeira.",
+  },
+  {
+    // Veio de "Homens" a seu pedido. A mudança tem efeito prático: a
+    // categoria Homens BLOQUEIA a inscrição de quem tem sexo Feminino no
+    // perfil, e Geral não bloqueia ninguém.
+    //
+    // ⚠️  O `publicoAlvo` e a descrição continuam dizendo "homens jovens",
+    // que foi o que você me passou da primeira vez. Agora uma mulher
+    // consegue se inscrever num curso cuja página diz que é para homens.
+    // Se a intenção era abrir de fato, me mande o texto novo.
+    nome: "Coragem",
+    categoria: "Geral",
+    duracao: "10 a 13 semanas",
+    publicoAlvo: "Homens, com ênfase em jovens",
+    descricaoMaterial:
+      "Curso voltado principalmente para homens jovens. Trabalha coragem, " +
+      "pureza sexual, disciplina, perseverança, identidade e como vencer as " +
+      "batalhas da juventude com firmeza e ousadia.",
+    capitulos: [
+      { titulo: "Não despreze a sua mocidade" },
+      { titulo: "Coragem" },
+      { titulo: "“Bananas”" },
+      { titulo: "Sexo" },
+      { titulo: "Como experimentar libertação" },
+      { titulo: "O homem invisível" },
+      { titulo: "Muito trabalho, pouco resultado" },
+      { titulo: "Ceder, curvar-se ou morrer queimado" },
+      { titulo: "“Escreva na sua bermuda!”" },
+      { titulo: "Os vencedores são aqueles que nunca desistem" },
     ],
   },
 

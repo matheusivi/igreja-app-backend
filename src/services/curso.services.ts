@@ -43,15 +43,17 @@ export class CursoService {
       publicoAlvo: data.publicoAlvo || null,
     });
 
+    // Só relê quando há ementa: sem capítulos, o que o `criar` devolveu já é
+    // a resposta final, e uma segunda ida ao banco seria desperdício.
     if (data.capitulos?.length) {
       await this.cursoRepository.substituirCapitulos(
         novoCurso.id,
         data.capitulos,
       );
+      return this.getById(novoCurso.id);
     }
 
-    // Relê para a resposta já sair com a ementa gravada.
-    return this.getById(novoCurso.id);
+    return this.formatarResponse(novoCurso);
   }
 
   public async getById(cursoId: number): Promise<CursoResponse> {
@@ -125,14 +127,20 @@ public async list(filters: ListCursosQuery = {}): Promise<ListarCursosResponse> 
   if (data.duracao !== undefined) updateData.duracao = data.duracao;
   if (data.publicoAlvo !== undefined) updateData.publicoAlvo = data.publicoAlvo;
 
-  await this.cursoRepository.atualizar(cursoId, updateData);
+  const cursoAtualizado = await this.cursoRepository.atualizar(
+    cursoId,
+    updateData,
+  );
 
   // Campo ausente = "não mexer na ementa". Lista vazia = "apagar a ementa".
+  // Só nesse caso vale reler: é a única situação em que o que o `atualizar`
+  // devolveu ficou desatualizado.
   if (data.capitulos !== undefined) {
     await this.cursoRepository.substituirCapitulos(cursoId, data.capitulos);
+    return this.getById(cursoId);
   }
 
-  return this.getById(cursoId);
+  return this.formatarResponse(cursoAtualizado);
 }
 
 public async delete(

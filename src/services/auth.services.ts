@@ -6,6 +6,7 @@ import type {
   LoginDTO,
   AuthResponse,
   UpdateMeDTO,
+  UsuarioPublico,
 } from "../dtos/auth.dto";
 import { UsuarioRepository } from "../repository/usuario.repository";
 import { AppError } from "../utils/AppError";
@@ -13,6 +14,7 @@ import { TokenRevogadoRepository } from "../repository/tokenRevogado.repository"
 import { PasswordResetTokenRepository } from "../repository/passwordResetToken.repository";
 import { enviarEmailRecuperacaoSenha } from "../lib/email";
 import { extrairPublicId, removerImagem } from "../lib/cloudinary";
+import { Perfis } from "../constants/perfis";
 
 export interface TokenPayload {
   id: number;
@@ -46,6 +48,52 @@ export class AuthService {
     }
 
     this.JWT_SECRET = process.env.JWT_SECRET;
+  }
+
+  /**
+   * A única descrição pública de um usuário.
+   *
+   * Todas as rotas que devolvem "quem é a pessoa" passam por aqui: entrar,
+   * cadastrar, recarregar a sessão e salvar o perfil. Antes cada uma escolhia
+   * os campos à mão, e as listas divergiram — o `/me` calava tres campos que
+   * a pessoa tinha acabado de salvar.
+   *
+   * A montagem é EXPLÍCITA, campo a campo, e não um espalhamento do objeto do
+   * banco. `buscarPorEmail` traz a linha inteira, com o hash da senha junto:
+   * espalhar mandaria o hash para o aparelho sem ninguém perceber.
+   */
+  private formatarUsuario(usuario: {
+    id: number;
+    nomeCompleto: string;
+    email: string;
+    perfil: string;
+    sexo: string | null;
+    dataNascimento: Date | null;
+    exibirAniversario: boolean;
+    estadoCivil: string | null;
+    fotoUrl: string | null;
+    profissao: string | null;
+    telefone: string | null;
+    especializacao: string | null;
+    divulgarTrabalho: boolean;
+    batizado: boolean;
+  }): UsuarioPublico {
+    return {
+      id: usuario.id,
+      nomeCompleto: usuario.nomeCompleto,
+      email: usuario.email,
+      perfil: usuario.perfil,
+      sexo: usuario.sexo,
+      dataNascimento: usuario.dataNascimento,
+      exibirAniversario: usuario.exibirAniversario,
+      estadoCivil: usuario.estadoCivil,
+      fotoUrl: usuario.fotoUrl,
+      profissao: usuario.profissao,
+      telefone: usuario.telefone,
+      especializacao: usuario.especializacao,
+      divulgarTrabalho: usuario.divulgarTrabalho,
+      batizado: usuario.batizado,
+    };
   }
 
   public async register(data: RegisterDTO): Promise<AuthResponse> {
@@ -82,13 +130,7 @@ export class AuthService {
       novoUsuario.sexo ?? "",
     );
 
-    return {
-      id: novoUsuario.id,
-      nomeCompleto: novoUsuario.nomeCompleto,
-      email: novoUsuario.email,
-      perfil: novoUsuario.perfil,
-      token,
-    };
+    return { ...this.formatarUsuario(novoUsuario), token };
   }
 
   public async login(data: LoginDTO): Promise<AuthResponse> {
@@ -110,13 +152,13 @@ export class AuthService {
       usuario.sexo ?? "",
     );
 
-    return {
-      id: usuario.id,
-      nomeCompleto: usuario.nomeCompleto,
-      email: usuario.email,
-      perfil: usuario.perfil,
-      token,
-    };
+    // ═══ O LOGIN DEVOLVE TUDO, NÃO SÓ O CRACHÁ ═══
+    // Antes vinham quatro campos. O app guardava isso como sendo "o usuário",
+    // e o resultado era que logo depois de entrar a pessoa não tinha foto,
+    // sexo nem data de nascimento — o Perfil mostrava as iniciais no lugar do
+    // retrato até o app ser reaberto, quando o `/me` finalmente trazia o
+    // resto. Entrar e recarregar precisam responder a mesma coisa.
+    return { ...this.formatarUsuario(usuario), token };
   }
 
   /**
@@ -131,6 +173,48 @@ export class AuthService {
     }
 
     return usuario;
+  }
+
+  /**
+   * O que o middleware de autenticação precisa saber a cada requisição:
+   * o perfil de agora e quando a senha mudou pela última vez.
+   *
+   * Separado de `getUserById` porque as duas perguntas são diferentes. Aquela
+   * é "quem é esta pessoa", para desenhar a tela. Esta é "esta sessão ainda
+   * vale", e é feita centenas de vezes mais.
+   */
+  public async getSessao(
+    id: number,
+  ): Promise<{ id: number; perfil: string; senhaAlteradaEm: Date | null }> {
+    const usuario = await this.usuarioRepository.buscarParaSessao(id);
+
+    if (!usuario) {
+      throw new AppError("Usuário não encontrado.", 404);
+    }
+
+    return usuario;
+  }
+
+  /**
+   * O token foi emitido ANTES da última troca de senha?
+   *
+   * ═══ POR QUE COMPARAR EM SEGUNDOS INTEIROS ═══
+   * O `iat` do JWT é truncado para segundo cheio. Um token emitido em
+   * 10.900s carimba `iat = 10`. Se a comparação fosse em milissegundos, uma
+   * senha trocada em 10.400s — ou seja, ANTES — pareceria posterior ao token
+   * e o derrubaria injustamente.
+   *
+   * Truncando os dois lados, só invalida quem foi emitido num segundo
+   * anteriormente fechado. O empate fica a favor do token, que é o lado certo
+   * de errar: o outro seria deslogar a pessoa no exato instante em que ela
+   * acaba de redefinir a senha e entrar de novo.
+   */
+  public tokenAnteriorATrocaDeSenha(
+    emitidoEm: number,
+    senhaAlteradaEm: Date | null,
+  ): boolean {
+    if (!senhaAlteradaEm) return false;
+    return Math.floor(senhaAlteradaEm.getTime() / 1000) > emitidoEm;
   }
 
   private generateToken(userId: number, perfil: string, sexo: string): string {
@@ -155,6 +239,47 @@ export class AuthService {
 
     const fotoAntiga = usuario.fotoUrl;
 
+    /**
+     * ═══ NÃO DÁ PARA SE DIVULGAR SEM OS DADOS QUE A DIVULGAÇÃO USA ═══
+     * O diretório profissional exige duas coisas do servidor: telefone (senão
+     * o cartão não tem como ser contatado) e data de nascimento (que é o que
+     * barra menores de idade numa lista com telefone e foto).
+     *
+     * Sem esta checagem, a pessoa ligaria o interruptor, salvaria com
+     * sucesso, e simplesmente não apareceria na lista — porque a consulta a
+     * filtraria em silêncio. Ela concluiria que o app está quebrado, e
+     * estaria certa em concluir: prometemos algo que não cumprimos.
+     *
+     * Falhar aqui, com o motivo, é o que transforma um sumiço inexplicável
+     * numa instrução.
+     */
+    if (data.divulgarTrabalho === true) {
+      const telefone = data.telefone ?? usuario.telefone;
+      const nascimento = data.dataNascimento ?? usuario.dataNascimento;
+
+      if (!telefone) {
+        throw new AppError(
+          "Informe um telefone para divulgar seu trabalho — é por ele que as pessoas vão te encontrar.",
+          400,
+        );
+      }
+      if (!nascimento) {
+        throw new AppError(
+          "Informe sua data de nascimento para divulgar seu trabalho.",
+          400,
+        );
+      }
+
+      const dezoitoAnosAtras = new Date();
+      dezoitoAnosAtras.setFullYear(dezoitoAnosAtras.getFullYear() - 18);
+      if (new Date(nascimento) > dezoitoAnosAtras) {
+        throw new AppError(
+          "A divulgação de trabalho é permitida apenas para maiores de 18 anos.",
+          403,
+        );
+      }
+    }
+
     const usuarioAtualizado = await this.usuarioRepository.atualizarDados(
       usuarioId,
       data,
@@ -170,12 +295,47 @@ export class AuthService {
     return usuarioAtualizado;
   }
 
+  /**
+   * Define quem é líder.
+   *
+   * ═══ TRÊS TRAVAS, EM CAMADAS DIFERENTES ═══
+   * A rota diz QUEM pode chamar (Pastor e Administrador). O schema diz QUAL
+   * perfil pode ser atribuído (Membro ou Líder). Falta a terceira, que é a
+   * daqui: SOBRE QUEM.
+   *
+   * Sem ela, um Pastor rebaixaria outro Pastor a Membro — e o rebaixado
+   * perderia o próprio poder de desfazer. Duas chamadas e a igreja fica sem
+   * liderança no app, sem ninguém capaz de reverter pelo aparelho.
+   *
+   * ═══ POR QUE NÃO CONFIAR NA TELA ═══
+   * A tela já esconde o botão de quem é Pastor ou Administrador. Isso é
+   * arrumação, não segurança: quem chama a rota direto não passa pela tela.
+   * A regra tem que morar onde a decisão é tomada.
+   */
   public async atualizarPerfil(
     usuarioId: number,
     novoPerfil: string,
+    solicitanteId: number,
   ): Promise<void> {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) throw new AppError("Usuário não encontrado.", 404);
+
+    // Mexer no próprio perfil é sempre errado, nas duas direções: rebaixar-se
+    // é tiro no pé, e promover-se é justamente o que a trava da rota impede.
+    if (usuarioId === solicitanteId) {
+      throw new AppError("Você não pode alterar o seu próprio perfil.", 403);
+    }
+
+    if (usuario.perfil === Perfis.PASTOR || usuario.perfil === Perfis.ADMINISTRADOR) {
+      throw new AppError(
+        `${usuario.nomeCompleto} é ${usuario.perfil.toLowerCase()}. Esse perfil só pode ser alterado direto no sistema.`,
+        403,
+      );
+    }
+
+    // Já está assim: gravar de novo não muda nada e ainda faria a tela
+    // anunciar uma promoção que não aconteceu.
+    if (usuario.perfil === novoPerfil) return;
 
     await this.usuarioRepository.atualizarPerfil(usuarioId, novoPerfil);
   }

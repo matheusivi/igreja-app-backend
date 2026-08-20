@@ -5,6 +5,8 @@ import {
   UpdateGrupoFamiliarSchema,
   ConvidarMembroSchema,
   ResponderConviteSchema,
+  AtualizarPapelSchema,
+  ListarFamiliasQuerySchema,
 } from "../validation/grupoFamiliar.validation";
 import { AppError } from "../utils/AppError";
 import { AuthRequest } from "../middlewares/auth.middleware";
@@ -104,6 +106,14 @@ export class GrupoFamiliarController {
     });
   };
 
+  public listar = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { busca, page, limit } = ListarFamiliasQuerySchema.parse(req.query);
+
+    const resultado = await this.grupoFamiliarService.listar(busca, page, limit);
+
+    res.status(200).json({ success: true, ...resultado });
+  };
+
   public getByUsuario = async (
     req: AuthRequest,
     res: Response,
@@ -154,6 +164,30 @@ export class GrupoFamiliarController {
       success: true,
       data: convites,
     });
+  };
+
+  public atualizarPapel = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const grupoId = Number(req.params.grupoId);
+    const membroUsuarioId = Number(req.params.usuarioId);
+
+    if (isNaN(grupoId) || isNaN(membroUsuarioId)) {
+      throw new AppError("IDs inválidos", 400);
+    }
+
+    const { parentesco } = AtualizarPapelSchema.parse(req.body);
+
+    await this.grupoFamiliarService.atualizarPapel(
+      grupoId,
+      membroUsuarioId,
+      parentesco,
+      req.user!.id,
+      req.user!.perfil,
+    );
+
+    res.status(200).json({ success: true });
   };
 
   public removerMembro = async (

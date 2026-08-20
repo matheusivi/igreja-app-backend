@@ -51,22 +51,22 @@ export class AuthController {
 
     const usuario = await this.authService.getUserById(req.user.id);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        id: usuario.id,
-        nomeCompleto: usuario.nomeCompleto,
-        email: usuario.email,
-        perfil: usuario.perfil,
-        sexo: usuario.sexo,
-        dataNascimento: usuario.dataNascimento,
-        exibirAniversario: usuario.exibirAniversario,
-        estadoCivil: usuario.estadoCivil,
-        fotoUrl: usuario.fotoUrl,
-        profissao: usuario.profissao,
-        batizado: usuario.batizado,
-      },
-    });
+    /**
+     * ═══ SEM ESCOLHER CAMPO A CAMPO ═══
+     * Aqui havia uma lista escrita à mão, e ela tinha ficado para trás:
+     * faltavam `telefone`, `especializacao` e `divulgarTrabalho`. O
+     * repositório buscava os três do banco e o controller os jogava fora.
+     *
+     * O efeito no app era o de dado que não salva — a pessoa preenchia o
+     * telefone, via a confirmação, fechava o app, reabria e o campo estava
+     * vazio. Nada se perdia: o servidor apenas não contava aquele pedaço
+     * quando era perguntado de novo.
+     *
+     * `buscarPorId` já usa um `select` fechado — sem senha, sem token de
+     * recuperação — então repassar o resultado é seguro E não pode ficar
+     * desatualizado: campo novo no `select` chega ao app sozinho.
+     */
+    res.status(200).json({ success: true, data: usuario });
   };
 
   public updateMe = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -86,16 +86,23 @@ export class AuthController {
     req: AuthRequest,
     res: Response,
   ): Promise<void> => {
+    if (!req.user) throw new AppError("Usuário não autenticado", 401);
+
     const usuarioId = Number(req.params.id);
     if (isNaN(usuarioId)) throw new AppError("ID do usuário inválido", 400);
 
     const { perfil } = AtualizarPerfilSchema.parse(req.body);
 
-    await this.authService.atualizarPerfil(usuarioId, perfil);
+    // O id de quem pede vem do TOKEN, nunca do corpo: é o que impede alguém
+    // de se passar por outro para driblar a trava de "não altere a si mesmo".
+    await this.authService.atualizarPerfil(usuarioId, perfil, req.user.id);
 
     res.status(200).json({
       success: true,
-      message: "Perfil do usuário atualizado com sucesso",
+      message:
+        perfil === "Líder"
+          ? "Agora esta pessoa é líder."
+          : "Esta pessoa deixou de ser líder.",
     });
   };
 

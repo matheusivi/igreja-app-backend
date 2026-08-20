@@ -14,6 +14,63 @@ import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
 
+/** "Masculino" → "Homens". Usado para casar pessoa e público da turma. */
+function publicoDoSexo(sexo: string): "Homens" | "Mulheres" | null {
+  if (sexo === "Masculino") return "Homens";
+  if (sexo === "Feminino") return "Mulheres";
+  return null;
+}
+
+/**
+ * Público padrão de uma turma nova, deduzido da categoria do curso.
+ *
+ * Curso "Homens" não deveria exigir que o líder marque a turma como
+ * masculina toda vez — isso já está dito na categoria. Em curso Geral o
+ * padrão é aberto, e o líder decide se quer separar.
+ */
+function publicoPadrao(categoria: string): "Todos" | "Homens" | "Mulheres" {
+  if (categoria === "Homens") return "Homens";
+  if (categoria === "Mulheres") return "Mulheres";
+  return "Todos";
+}
+
+/**
+ * Quem pode mexer nesta turma.
+ *
+ * ═══ O QUE FALTAVA ═══
+ * A regra olhava só para o criador do CURSO. Mas quem cria uma turma vira o
+ * LÍDER dela — o `create` faz `lider: { connect: { id: usuarioId } }`, a tela
+ * de criação promete "você será o líder desta turma", e o banco guarda isso em
+ * `liderUsuarioId`.
+ *
+ * Esse campo era simplesmente ignorado na hora de editar e de excluir. O
+ * resultado: um líder criava a turma dentro de um curso do pastor, virava
+ * responsável por ela — e não conseguia nem corrigir o nome nem apagá-la.
+ * Criava e ficava preso.
+ *
+ * ═══ POR QUE O CRIADOR DO CURSO CONTINUA PODENDO ═══
+ * O curso é a trilha; as turmas são as ofertas dela. Quem montou a trilha
+ * responde pelo conjunto, inclusive por turma que alguém abriu e abandonou.
+ *
+ * ═══ ISTO NÃO AFROUXA NADA ═══
+ * A rota já exige Administrador, Pastor ou Líder (`requireRole`). O que muda é
+ * QUAL líder — antes, nenhum que não fosse dono do curso; agora, o que conduz
+ * aquela turma. As travas seguintes (turma com matrículas só o administrador
+ * exclui) continuam valendo.
+ */
+function podeGerenciarTurma(
+  sala: { liderUsuarioId: number | null; curso: { criadorUsuarioId: number } },
+  usuarioId: number,
+  perfil: string,
+): boolean {
+  return (
+    perfil === Perfis.ADMINISTRADOR ||
+    perfil === Perfis.PASTOR ||
+    sala.curso.criadorUsuarioId === usuarioId ||
+    sala.liderUsuarioId === usuarioId
+  );
+}
+
 export class SalaService {
   private usuarioRepository: UsuarioRepository;
   private salaCursoRepository: SalaCursoRepository;
@@ -36,10 +93,8 @@ export class SalaService {
     const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
     if (!usuario) throw new AppError("Usuário não encontrado", 404);
 
-    const cursoExiste = await this.salaCursoRepository.cursoExiste(
-      data.cursoId,
-    );
-    if (!cursoExiste) throw new AppError("Curso não encontrado", 404);
+    const curso = await this.salaCursoRepository.cursoExiste(data.cursoId);
+    if (!curso) throw new AppError("Curso não encontrado", 404);
 
     const novaSala = await this.salaCursoRepository.criar({
       curso: { connect: { id: data.cursoId } },
@@ -48,6 +103,7 @@ export class SalaService {
       dataFim: data.dataFim ? new Date(data.dataFim) : null,
       status: "ativa",
       capacidade: data.capacidade ?? null,
+      publico: data.publico ?? publicoPadrao(curso.categoria),
       // Quem cria a turma passa a ser o líder dela — era o que a tela de
       // criação já prometia ao usuário, mas ninguém guardava.
       lider: { connect: { id: usuarioId } },
@@ -107,6 +163,16 @@ export class SalaService {
       curso: { is: { categoria: { in: categoriasPermitidas } } },
     });
 
+    // Turma restrita por sexo. Complementa o filtro por categoria: um curso
+    // Geral pode ter uma turma só de homens e outra só de mulheres.
+    const publicoDaPessoa = publicoDoSexo(sexoUsuario);
+    whereClauses.push({
+      OR: [
+        { publico: "Todos" },
+        ...(publicoDaPessoa ? [{ publico: publicoDaPessoa }] : []),
+      ],
+    });
+
     if (cursoId !== undefined) whereClauses.push({ cursoId });
     if (busca) {
       whereClauses.push({ nomeSala: { contains: busca, mode: "insensitive" } });
@@ -160,11 +226,7 @@ export class SalaService {
       await this.salaCursoRepository.buscarParaPermissao(salaId);
     if (!salaExistente) throw new AppError("Sala não encontrada", 404);
 
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      perfil !== Perfis.PASTOR &&
-      salaExistente.curso.criadorUsuarioId !== usuarioId
-    ) {
+    if (!podeGerenciarTurma(salaExistente, usuarioId, perfil)) {
       throw new AppError(
         "Você não tem permissão para atualizar esta sala",
         403,
@@ -184,6 +246,7 @@ export class SalaService {
     }
     if (data.status !== undefined) updateData.status = data.status;
     if (data.capacidade !== undefined) updateData.capacidade = data.capacidade;
+    if (data.publico !== undefined) updateData.publico = data.publico;
 
     // Encerrar a turma fecha as matrículas que ainda estavam ativas. Sem
     // isso elas ficariam "ativo" para sempre e o Perfil da pessoa continuaria
@@ -219,11 +282,7 @@ export class SalaService {
       await this.salaCursoRepository.buscarParaPermissao(salaId);
     if (!salaExistente) throw new AppError("Sala não encontrada", 404);
 
-    if (
-      perfil !== Perfis.ADMINISTRADOR &&
-      perfil !== Perfis.PASTOR &&
-      salaExistente.curso.criadorUsuarioId !== usuarioId
-    ) {
+    if (!podeGerenciarTurma(salaExistente, usuarioId, perfil)) {
       throw new AppError("Você não tem permissão para excluir esta turma", 403);
     }
 
@@ -252,6 +311,7 @@ export class SalaService {
       dataFim: sala.dataFim,
       status: sala.status,
       capacidade: sala.capacidade,
+      publico: sala.publico,
       totalMatriculas: sala._count?.participantes ?? 0,
       lider: sala.lider ?? null,
       cursoId: sala.cursoId,

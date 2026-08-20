@@ -19,6 +19,13 @@ export interface ResponderConviteDTO {
 
 export interface MembroFamiliaResponse {
     id: number;
+    /**
+     * Papel na família, da lista fechada em `domain/papelFamilia`.
+     *
+     * Chave neutra (`filho`), nunca a palavra exibida: a concordância de
+     * gênero é feita na tela a partir do `sexo`, senão o cadastro teria
+     * "Filho" e "Filha" como valores distintos para o mesmo papel.
+     */
     parentesco: string | null;
     status: string;
     usuario: {
@@ -26,6 +33,8 @@ export interface MembroFamiliaResponse {
         nomeCompleto: string;
         perfil: string;
         fotoUrl: string | null;
+        /** Só para escrever "Filha" em vez de "Filho". */
+        sexo: string | null;
     };
     convidadoPor: {
         id: number;
@@ -55,6 +64,7 @@ export interface GrupoFamiliarComMembros {
             nomeCompleto: string;
             perfil: string;
             fotoUrl: string | null;
+            sexo: string | null;
         } | null;
         convidadoPor: {
             id: number;

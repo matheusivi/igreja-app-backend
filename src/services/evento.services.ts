@@ -12,6 +12,79 @@ import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
 import { extrairPublicId, removerImagem } from "../lib/cloudinary";
+import { FUSO_IGREJA } from "../constants/igreja";
+
+/**
+ * Fuso da igreja. Fixo, e de propósito.
+ *
+ * O agendamento é de uma congregação em Nova Andradina/MS — o "dia" de um
+ * evento é o dia LÁ, não o dia de onde o servidor estiver hospedado.
+ *
+ * O código usava `data.getDate()`, que responde no fuso do PROCESSO. Num VPS
+ * em UTC (o padrão de praticamente todo provedor), um culto marcado para
+ * 20:00 de segunda vira 23:00 UTC — ainda segunda, tudo bem. Mas o culto de
+ * sábado às 21:00 vira 01:00 de DOMINGO em UTC, e o app mostraria o evento no
+ * dia errado. O defeito só apareceria depois do deploy, e só nos eventos da
+ * noite: o pior tipo de bug para rastrear.
+ *
+ * Fixar o fuso resolve isso e ainda torna o resultado igual em qualquer
+ * máquina — o mesmo banco devolve o mesmo dia rodando local ou em produção.
+ */
+// Vem de `constants/igreja.ts`, junto com o resto do que é desta igreja:
+// quem adapta o app para outra congregação edita um arquivo, não caça
+// strings soltas pelos serviços.
+
+/**
+ * Dia do mês de um instante, lido no fuso da igreja.
+ *
+ * `Intl` é usado em vez de aritmética com offset porque ele conhece horário
+ * de verão. O Brasil não tem hoje, mas já teve e pode voltar — e nesse dia
+ * uma subtração fixa de 4 horas erraria por uma hora durante meio ano.
+ *
+ * ═══ EXPORTADA PARA TESTE, E SÓ ═══
+ * Ninguém mais deve importar isto. O motivo de abrir é que o defeito que ela
+ * conserta — culto de sábado à noite aparecendo no domingo — não tem como ser
+ * exercitado pela API pública sem montar um mês inteiro de ocorrências, e um
+ * teste que precisa de tanto andaime deixa de ser escrito.
+ */
+export function diaLocalDoEvento(data: Date): number {
+  const formatador = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO_IGREJA,
+    day: "numeric",
+  });
+  return Number(formatador.format(data));
+}
+
+
+/**
+ * Data de uma ocorrência: dia novo, MESMO HORÁRIO do evento original.
+ *
+ * A versão anterior usava `new Date(ano, mes - 1, dia)`, que é meia-noite. O
+ * efeito: um culto semanal marcado para 19:30 aparecia com "00:00" em todas as
+ * repetições, porque o card lê a hora de `dataInicio` — e a `dataInicio` da
+ * ocorrência era meia-noite, não 19:30.
+ *
+ * Pior que o horário errado era a consequência silenciosa: a comparação
+ * `data < evento.dataInicio` passava a comparar meia-noite do dia X com
+ * 19:30 do dia X, o que é VERDADEIRO — e a primeira ocorrência, justamente a
+ * do dia que a pessoa escolheu, era descartada.
+ */
+function comHorarioDoEvento(
+  original: Date,
+  ano: number,
+  mes: number,
+  dia: number,
+): Date {
+  return new Date(
+    ano,
+    mes - 1,
+    dia,
+    original.getHours(),
+    original.getMinutes(),
+    0,
+    0,
+  );
+}
 
 export class EventoService {
   private usuarioRepository: UsuarioRepository;
@@ -93,7 +166,7 @@ export class EventoService {
     const porDia = new Map<number, EventoOcorrencia[]>();
 
     for (const ocorrencia of ocorrencias) {
-      const dia = ocorrencia.dataInicio.getDate();
+      const dia = diaLocalDoEvento(ocorrencia.dataInicio);
       if (!porDia.has(dia)) porDia.set(dia, []);
       porDia.get(dia)!.push(ocorrencia);
     }
@@ -217,8 +290,12 @@ export class EventoService {
 
       if (evento.recorrencia === "semanal" && evento.diaSemana !== null) {
         for (let dia = 1; dia <= diasNoMes; dia++) {
-          const data = new Date(ano, mes - 1, dia);
+          const data = comHorarioDoEvento(evento.dataInicio, ano, mes, dia);
           if (data.getDay() !== evento.diaSemana) continue;
+          // `<` e não `<=`: a PRIMEIRA ocorrência é o próprio dia escolhido.
+          // Comparar meia-noite com o horário real do evento excluía o dia
+          // inicial de qualquer evento marcado depois das 00:00 — ou seja,
+          // todos. Agora as duas pontas têm o mesmo horário.
           if (data < evento.dataInicio) continue;
           if (evento.dataFimRecorrencia && data > evento.dataFimRecorrencia)
             continue;
@@ -228,7 +305,10 @@ export class EventoService {
       }
 
       if (evento.recorrencia === "mensal" && evento.diaDoMes !== null) {
-        const data = new Date(ano, mes - 1, evento.diaDoMes);
+        // `Math.min` para o dia 31 não virar dia 1 do mês seguinte em
+        // fevereiro: um evento "todo dia 31" cai no último dia do mês curto.
+        const diaValido = Math.min(evento.diaDoMes, diasNoMes);
+        const data = comHorarioDoEvento(evento.dataInicio, ano, mes, diaValido);
         if (
           data >= evento.dataInicio &&
           (!evento.dataFimRecorrencia || data <= evento.dataFimRecorrencia)

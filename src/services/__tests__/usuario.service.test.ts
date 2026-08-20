@@ -21,6 +21,9 @@ const makeUsuario = (overrides = {}) => ({
   estadoCivil: "Solteiro",
   profissao: "Professor",
   batizado: false,
+  telefone: null,
+  especializacao: null,
+  divulgarTrabalho: false,
   ...overrides,
 });
 
@@ -37,20 +40,32 @@ describe("UsuarioService", () => {
   // ========================
   // LISTAR
   // ========================
+  /**
+   * A busca deixou de passar pelo `findMany` do Prisma e passou a usar
+   * consulta crua (`buscarComFamilia`), para ignorar acento e trazer a
+   * família junto. Os testes seguem o serviço: o que se verifica agora é que
+   * os filtros e a paginação chegam ao repositório, não a forma do `where`
+   * do Prisma — que deixou de existir.
+   */
   describe("listar", () => {
     it("deve listar usuários com filtros padrão", async () => {
-      usuarioRepo.listar.mockResolvedValue([
-        { id: 1, nomeCompleto: "João Silva", fotoUrl: null, perfil: "Membro" },
-      ] as any);
-      usuarioRepo.contar.mockResolvedValue(1);
+      usuarioRepo.buscarComFamilia.mockResolvedValue([
+        {
+          id: 1,
+          nomeCompleto: "João Silva",
+          fotoUrl: null,
+          perfil: "Membro",
+          sexo: "Masculino",
+          familiaId: 3,
+          familia: "Família Silva",
+        },
+      ]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(1);
 
       const resultado = await service.listar();
 
-      expect(usuarioRepo.listar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          take: 20,
-          skip: 0,
-        }),
+      expect(usuarioRepo.buscarComFamilia).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 20, skip: 0 }),
       );
       expect(resultado.data).toHaveLength(1);
       expect(resultado.total).toBe(1);
@@ -58,52 +73,84 @@ describe("UsuarioService", () => {
       expect(resultado.totalPages).toBe(1);
     });
 
-    it("deve aplicar filtro de busca por nome", async () => {
-      usuarioRepo.listar.mockResolvedValue([]);
-      usuarioRepo.contar.mockResolvedValue(0);
+    it("deve devolver a família junto de cada pessoa", async () => {
+      usuarioRepo.buscarComFamilia.mockResolvedValue([
+        {
+          id: 1,
+          nomeCompleto: "Maria Souza",
+          fotoUrl: null,
+          perfil: "Membro",
+          sexo: "Masculino",
+          familiaId: 7,
+          familia: "Família Souza",
+        },
+        {
+          id: 2,
+          nomeCompleto: "Pedro Lima",
+          fotoUrl: null,
+          perfil: "Membro",
+          sexo: "Masculino",
+          // Quem ainda não tem família é informação útil por si: é quem a
+          // liderança precisa acolher.
+          familiaId: null,
+          familia: null,
+        },
+      ]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(2);
 
-      await service.listar({ busca: "João", page: 1, limit: 10 });
+      const resultado = await service.listar({ busca: "a" });
 
-      expect(usuarioRepo.listar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            nomeCompleto: { contains: "João", mode: "insensitive" },
-          }),
-          take: 10,
-          skip: 0,
-        }),
+      expect(resultado.data[0]).toMatchObject({
+        familiaId: 7,
+        familia: "Família Souza",
+      });
+      expect(resultado.data[1]).toMatchObject({
+        familiaId: null,
+        familia: null,
+      });
+    });
+
+    it("deve repassar o termo de busca e a paginação", async () => {
+      usuarioRepo.buscarComFamilia.mockResolvedValue([]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(0);
+
+      await service.listar({ busca: "João", page: 2, limit: 10 });
+
+      expect(usuarioRepo.buscarComFamilia).toHaveBeenCalledWith(
+        expect.objectContaining({ busca: "João", take: 10, skip: 10 }),
+      );
+      // A contagem tem que ver o MESMO filtro da lista, senão o total mente
+      // e a paginação cria páginas vazias.
+      expect(usuarioRepo.contarComFamilia).toHaveBeenCalledWith(
+        expect.objectContaining({ busca: "João" }),
       );
     });
 
     it("deve aplicar filtro de perfil", async () => {
-      usuarioRepo.listar.mockResolvedValue([]);
-      usuarioRepo.contar.mockResolvedValue(0);
+      usuarioRepo.buscarComFamilia.mockResolvedValue([]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(0);
 
       await service.listar({ perfil: "Pastor" });
 
-      expect(usuarioRepo.listar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ perfil: "Pastor" }),
-        }),
+      expect(usuarioRepo.buscarComFamilia).toHaveBeenCalledWith(
+        expect.objectContaining({ perfil: "Pastor" }),
       );
     });
 
     it("deve aplicar filtro de sexo", async () => {
-      usuarioRepo.listar.mockResolvedValue([]);
-      usuarioRepo.contar.mockResolvedValue(0);
+      usuarioRepo.buscarComFamilia.mockResolvedValue([]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(0);
 
       await service.listar({ sexo: "Feminino" });
 
-      expect(usuarioRepo.listar).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ sexo: "Feminino" }),
-        }),
+      expect(usuarioRepo.buscarComFamilia).toHaveBeenCalledWith(
+        expect.objectContaining({ sexo: "Feminino" }),
       );
     });
 
     it("deve calcular totalPages corretamente", async () => {
-      usuarioRepo.listar.mockResolvedValue([]);
-      usuarioRepo.contar.mockResolvedValue(45);
+      usuarioRepo.buscarComFamilia.mockResolvedValue([]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(45);
 
       const resultado = await service.listar({ limit: 20, page: 1 });
 
@@ -112,8 +159,8 @@ describe("UsuarioService", () => {
     });
 
     it("deve retornar lista vazia quando não há usuários", async () => {
-      usuarioRepo.listar.mockResolvedValue([]);
-      usuarioRepo.contar.mockResolvedValue(0);
+      usuarioRepo.buscarComFamilia.mockResolvedValue([]);
+      usuarioRepo.contarComFamilia.mockResolvedValue(0);
 
       const resultado = await service.listar();
 

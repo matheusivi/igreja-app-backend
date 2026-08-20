@@ -1,0 +1,17 @@
+-- O nome da igreja volta para o CÓDIGO (`src/constants/igreja.ts` no app).
+--
+-- Ele foi para o banco junto com a capa e o versículo do topo da Home, por
+-- simetria. Mas os três não são a mesma coisa:
+--
+--   capa e versículo  → mudam VÁRIAS vezes por ano, e quem muda é o pastor.
+--   nome da igreja    → muda UMA vez na vida do app, quando o código é
+--                       adaptado para outra congregação — e nesse momento
+--                       quem está mexendo já é quem edita o fonte.
+--
+-- Configurar o que nunca muda tem custo: uma tela a mais para manter, uma
+-- consulta antes de desenhar o topo, e um campo que qualquer pastor pode
+-- esvaziar sem querer, deixando sete telas com "Nossa igreja".
+--
+-- A coluna é removida em vez de ficar sem uso: coluna órfã vira dúvida
+-- ("isto é lido por alguém?") para quem abrir o schema daqui a um ano.
+ALTER TABLE "configuracao_igreja" DROP COLUMN IF EXISTS "nomeIgreja";

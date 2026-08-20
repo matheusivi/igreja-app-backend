@@ -7,6 +7,7 @@ export interface CreateSalaDTO {
   dataInicio?: string; // formato "YYYY-MM-DD"
   dataFim?: string; // formato "YYYY-MM-DD"
   capacidade?: number | null | undefined;
+  publico?: 'Todos' | 'Homens' | 'Mulheres' | undefined;
 }
 
 export interface UpdateSalaDTO {
@@ -15,6 +16,7 @@ export interface UpdateSalaDTO {
   dataFim?: string;
   status?: "ativa" | "inativa" | "concluída";
   capacidade?: number | null | undefined;
+  publico?: 'Todos' | 'Homens' | 'Mulheres' | undefined;
 }
 
 export interface SalaResponse {
@@ -24,6 +26,8 @@ export interface SalaResponse {
   dataFim: Date | null;
   status: string; // "ativa" | "inativa" | "concluída"
   capacidade: number | null;
+  /** "Todos", "Homens" ou "Mulheres". */
+  publico: string;
   /**
    * Matrículas com status "ativo". Sem isto o app não tem como mostrar
    * lotação nem bloquear turma cheia.
@@ -62,6 +66,7 @@ export type SalaComCursoSimples = {
   dataFim: Date | null;
   status: string;
   capacidade: number | null;
+  publico: string;
   curso?: {
     // ← Tornei opcional com '?'
     id: number;

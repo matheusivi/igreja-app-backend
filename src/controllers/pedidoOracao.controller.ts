@@ -1,7 +1,11 @@
 import type { Response } from "express";
 import { PedidoOracaoService } from "../services/pedidoOracao.services";
 import type { AuthRequest } from "../middlewares/auth.middleware";
-import { CreatePedidoOracaoSchema, UpdatePedidoOracaoSchema } from "../validation/pedidoOracao.validation";
+import {
+  CreatePedidoOracaoSchema,
+  ListarPedidosOracaoQuerySchema,
+  UpdatePedidoOracaoSchema,
+} from "../validation/pedidoOracao.validation";
 import { AppError } from "../utils/AppError";
 
 export class PedidoOracaoController {
@@ -28,12 +32,18 @@ export class PedidoOracaoController {
   };
 
   public list = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { busca, limit, page } = req.query;
+    if (!req.user) throw new AppError("Usuário não autenticado", 401);
+
+    const { busca, apenasMeus, limit, page } =
+      ListarPedidosOracaoQuerySchema.parse(req.query);
 
     const resultado = await this.pedidoOracaoService.list({
-      ...(busca ? { busca: String(busca) } : {}),
-      limit: limit ? Number(limit) : undefined,
-      page: page ? Number(page) : undefined,
+      ...(busca ? { busca } : {}),
+      // O id sai do TOKEN, não da query. O cliente diz apenas SE quer filtrar;
+      // quem ele é, quem decide é o servidor.
+      ...(apenasMeus ? { somenteDoUsuarioId: req.user.id } : {}),
+      limit,
+      page,
     });
 
     res.status(200).json({

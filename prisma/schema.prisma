@@ -20,13 +20,35 @@ model Usuario {
   sexo              String // "Masculino", "Feminino"
   profissao         String?
 
+  /// Quando a senha foi trocada pela última vez.
+  ///
+  /// Existe para DERRUBAR SESSÕES. Trocar a senha invalidava só o token de
+  /// recuperação — os JWT já emitidos continuavam valendo por até 24h. Quem
+  /// tivesse o celular da pessoa em mãos seguia dentro do app um dia inteiro
+  /// depois de ela ter trocado a senha justamente para expulsá-lo.
+  ///
+  /// O middleware compara este instante com o `iat` do token e recusa
+  /// qualquer um emitido antes. Nulo significa "nunca trocou", e aí não há o
+  /// que comparar — é o estado de todas as contas já existentes.
+  senhaAlteradaEm   DateTime?
+
+  // ── Divulgação de trabalho na comunidade ─────────────────────────────
+  // `divulgarTrabalho` é opt-in explícito, e não derivado de ter profissão
+  // preenchida: a profissão foi informada para o cadastro de membro, não
+  // para virar anúncio. Publicar telefone para a igreja inteira é uma
+  // finalidade nova, e finalidade nova pede consentimento próprio — mesma
+  // lógica do `exibirAniversario`, que já existe logo acima.
+  telefone          String?
+  especializacao    String?
+  divulgarTrabalho  Boolean  @default(false)
+
   conteudos         Conteudo[]
   cursosCriados      Curso[]        @relation("CriadorCurso")
   historicoCursos    UsuarioCurso[]
   participacoesSalas UsuarioSala[]
   salasLideradas     SalaCurso[]    @relation("LiderSala")
   pedidosOracao     PedidoOracao[]
-  // leiturasDiarias   LeituraDiaria[]
+  leiturasDoPlano   LeituraPlano[]
   gruposFamiliares  MembroFamilia[] @relation("MembroDoGrupo")
   convitesEnviados  MembroFamilia[] @relation("ConvitesEnviados")
   gruposCriados     GrupoFamiliar[]  @relation("CriadorGrupo")
@@ -41,9 +63,22 @@ model Conteudo {
   usuarioId      Int
   tipo           String    // Estudo, Devocional, Aviso, Material, Apresentacao
   titulo         String
-  texto          String?   // Texto principal (pode ser rich text)
-  imagemUrl      String?   // URL da imagem
-  videoUrl       String?   // URL do vídeo
+  /// Sequência do post: parágrafos, imagens e vídeos na ordem em que foram
+  /// escritos. É a fonte da verdade do conteúdo.
+  ///
+  /// Formato: [{ "tipo": "texto" | "imagem" | "video", "valor": "..." }]
+  ///
+  /// Guardado como Json e não numa tabela à parte porque os blocos nunca são
+  /// consultados sozinhos — sempre vêm junto com o conteúdo — e a ordem já
+  /// está no próprio array.
+  blocos         Json?
+  /// Os três campos abaixo são DERIVADOS dos blocos a cada gravação, e não
+  /// editados diretamente. Existem para que listagens e buscas continuem
+  /// simples: `texto` alimenta o resumo e a busca, `imagemUrl` é a capa que
+  /// aparece nos cards, `videoUrl` é o primeiro vídeo.
+  texto          String?
+  imagemUrl      String?
+  videoUrl       String?
   formato        String    // texto, imagem, vídeo, combinacao
   dataPublicacao DateTime  @default(now())
   principal      Boolean   @default(false)
@@ -113,6 +148,12 @@ model SalaCurso {
   status     String   @default("ativa")   // "ativa", "inativa", "concluída"
   // Limite de matrículas ativas. Null = sem limite.
   capacidade Int?
+  /// Quem pode participar desta turma: "Todos", "Homens" ou "Mulheres".
+  ///
+  /// Existe além da categoria do curso porque um curso Geral pode ter uma
+  /// turma só de homens e outra só de mulheres — algo que a categoria,
+  /// sendo do curso inteiro, não consegue expressar.
+  publico    String   @default("Todos")
   // Quem conduz a turma. A tela de criação já prometia "você será o líder
   // desta turma", mas isso não era guardado em lugar nenhum.
   liderUsuarioId Int?
@@ -230,4 +271,64 @@ model PasswordResetToken {
   usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("password_reset_tokens")
+}
+
+/**
+ * Configuração da igreja — LINHA ÚNICA.
+ *
+ * `id` fixo em 1 e `@default(1)`: é um singleton. Sem essa trava, um bug de
+ * upsert criaria a segunda configuração e a Home passaria a mostrar uma ou
+ * outra conforme a ordem da consulta — o tipo de defeito que aparece só em
+ * produção e ninguém reproduz.
+ *
+ * Existe para tirar do CÓDIGO o que é da igreja. A capa e o versículo do topo
+ * da Home estavam escritos no fonte: trocar a frase exigia um deploy, e a
+ * foto exigia commitar um arquivo em `assets/`. Nenhum pastor faz deploy.
+ */
+model ConfiguracaoIgreja {
+  id             Int      @id @default(1)
+  /// O nome da igreja NÃO mora aqui: ele está em `constants/igreja.ts`, no
+  /// app. Muda uma vez na vida do projeto, quando o código é adaptado para
+  /// outra congregação — configurar isso seria painel para botão que
+  /// ninguém aperta. O que está aqui é o que o pastor troca de verdade.
+  heroImagemUrl  String?
+  versiculoHome  String?
+  atualizadoEm   DateTime @updatedAt
+
+  @@map("configuracao_igreja")
+}
+
+/// Um dia do plano de leitura anual que a pessoa marcou como lido.
+///
+/// ═══ POR QUE UMA LINHA POR DIA LIDO ═══
+/// O contrário — uma linha por dia do ano, com um booleano — criaria 365
+/// registros por pessoa no instante do cadastro, a maioria para sempre
+/// `false`. Aqui a ausência da linha JÁ significa "não lido", e o banco só
+/// guarda o que aconteceu.
+///
+/// ═══ POR QUE `dia` É TEXTO, E NÃO DATA ═══
+/// "5 de agosto de 2026" aqui é um RÓTULO do plano, não um instante no tempo.
+/// Guardar como `DateTime` obrigaria a escolher um fuso, e a escolha erraria:
+/// meia-noite em Campo Grande é 03:00 UTC, e o mesmo registro voltaria como
+/// dia 4 ou dia 5 dependendo de onde a consulta rodasse. Já aconteceu neste
+/// projeto com os eventos.
+///
+/// Texto `YYYY-MM-DD` não tem fuso, ordena alfabeticamente na ordem certa e
+/// filtra por ano com um simples prefixo.
+model LeituraPlano {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int
+  /// Dia do plano no formato `YYYY-MM-DD`. Validado no schema da rota.
+  dia         String   @db.VarChar(10)
+  concluidoEm DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  /// Marcar duas vezes o mesmo dia não pode virar dois registros: o progresso
+  /// é contado por linhas, e a duplicata inflaria o número silenciosamente.
+  @@unique([usuarioId, dia])
+  /// A tela sempre pergunta "o que ESTA pessoa leu neste ano" — o índice
+  /// atende essa consulta inteira.
+  @@index([usuarioId, dia])
+  @@map("leituras_plano")
 }

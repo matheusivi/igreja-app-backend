@@ -52,7 +52,10 @@ export class ConteudoRepository {
    */
   async listar(params: {
     where?: Prisma.ConteudoWhereInput;
-    orderBy?: Prisma.ConteudoOrderByWithRelationInput;
+    // Aceita lista para ordenar por destaque e depois por data.
+    orderBy?:
+      | Prisma.ConteudoOrderByWithRelationInput
+      | Prisma.ConteudoOrderByWithRelationInput[];
     take?: number;
     skip?: number;
   }) {
@@ -66,6 +69,37 @@ export class ConteudoRepository {
     if (params.skip !== undefined) query.skip = params.skip;
 
     return prisma.conteudo.findMany(query);
+  }
+
+  /**
+   * Tira o destaque dos demais conteúdos do mesmo tipo.
+   *
+   * Um destaque por tipo: um Aviso em destaque e um Devocional em destaque
+   * podem coexistir, dois Avisos não.
+   */
+  async limparPrincipais(tipo: string, excetoId?: number) {
+    return prisma.conteudo.updateMany({
+      where: {
+        tipo,
+        principal: true,
+        ...(excetoId !== undefined ? { id: { not: excetoId } } : {}),
+      },
+      data: { principal: false },
+    });
+  }
+
+  /**
+   * O destaque atual de um tipo, se houver.
+   *
+   * Só os dois campos que decidem se ele ainda vale. Trazer o conteúdo
+   * inteiro — com blocos, texto e autor — para ler duas datas seria carregar
+   * um post completo a cada listagem.
+   */
+  async buscarPrincipal(tipo: string) {
+    return prisma.conteudo.findFirst({
+      where: { tipo, principal: true },
+      select: { id: true, dataPublicacao: true, dataValidade: true },
+    });
   }
 
   /**

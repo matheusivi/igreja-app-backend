@@ -1,76 +1,51 @@
 // src/schemas/conteudo.schema.ts
 import { z } from "zod";
 
-export const CreateConteudoSchema = z
-  .object({
-    tipo: z.enum(
-      ["Estudo", "Devocional", "Aviso", "Material", "Apresentacao"],
-      {
-        message: "Tipo de conteúdo inválido",
-      },
-    ),
+/**
+ * Um bloco do post. O conteúdo é uma sequência deles, na ordem escrita.
+ *
+ * `valor` é o texto do parágrafo, ou a URL da imagem/vídeo.
+ */
+export const BlocoSchema = z.discriminatedUnion("tipo", [
+  z.object({
+    tipo: z.literal("texto"),
+    valor: z.string().min(1, "Parágrafo vazio").max(20000),
+  }),
+  z.object({
+    tipo: z.literal("imagem"),
+    valor: z.url("URL da imagem inválida"),
+  }),
+  z.object({
+    tipo: z.literal("video"),
+    valor: z.url("URL do vídeo inválida"),
+  }),
+]);
 
-    titulo: z
-      .string()
-      .min(3, "O título deve ter pelo menos 3 caracteres")
-      .max(200, "O título não pode ter mais de 200 caracteres")
-      .trim(),
+const BlocosSchema = z
+  .array(BlocoSchema)
+  .min(1, "Adicione ao menos um parágrafo, imagem ou vídeo.")
+  .max(200, "Conteúdo muito longo.");
 
-    texto: z
-      .string()
-      .min(10, "O texto deve ter pelo menos 10 caracteres")
-      .optional(),
+export const CreateConteudoSchema = z.object({
+  tipo: z.enum(
+    ["Estudo", "Devocional", "Aviso", "Material", "Apresentacao"],
+    { message: "Tipo de conteúdo inválido" },
+  ),
 
-    imagemUrl: z.url("URL da imagem inválida").optional(),
+  titulo: z
+    .string()
+    .min(3, "O título deve ter pelo menos 3 caracteres")
+    .max(200, "O título não pode ter mais de 200 caracteres")
+    .trim(),
 
-    videoUrl: z.url("URL do vídeo inválida").optional(),
+  blocos: BlocosSchema,
 
-    formato: z.enum(["texto", "imagem", "vídeo", "combinacao"], {
-      message: "Formato inválido",
-    }),
+  principal: z.boolean().optional().default(false),
 
-    principal: z.boolean().optional().default(false),
-
-    dataValidade: z.iso
-      .datetime({ message: "Data de validade inválida" })
-      .optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.formato === "texto" && !data.texto) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'O campo texto é obrigatório para o formato "texto"',
-        path: ["texto"],
-      });
-    }
-
-    if (data.formato === "imagem" && !data.imagemUrl) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'O campo imagemUrl é obrigatório para o formato "imagem"',
-        path: ["imagemUrl"],
-      });
-    }
-
-    if (data.formato === "vídeo" && !data.videoUrl) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'O campo videoUrl é obrigatório para o formato "vídeo"',
-        path: ["videoUrl"],
-      });
-    }
-
-    if (data.formato === "combinacao") {
-      if (!data.texto && !data.imagemUrl && !data.videoUrl) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message:
-            'Para o formato "combinacao" pelo menos um campo de conteúdo deve ser preenchido (texto, imagemUrl ou videoUrl)',
-          path: ["formato"],
-        });
-      }
-    }
-  });
+  dataValidade: z.iso
+    .datetime({ message: "Data de validade inválida" })
+    .optional(),
+});
 
 export const UpdateConteudoSchema = z.object({
   tipo: z
@@ -84,17 +59,8 @@ export const UpdateConteudoSchema = z.object({
     .trim()
     .optional(),
 
-  texto: z
-    .string()
-    .min(10, "O texto deve ter pelo menos 10 caracteres")
-    .optional(),
-
-  // `null` remove a capa. Campo ausente significa "não mexer".
-  imagemUrl: z.union([z.url("URL da imagem inválida"), z.null()]).optional(),
-
-  videoUrl: z.url("URL do vídeo inválida").optional(),
-
-  formato: z.enum(["texto", "imagem", "vídeo", "combinacao"]).optional(),
+  // Enviado inteiro quando muda: a sequência é substituída, não mesclada.
+  blocos: BlocosSchema.optional(),
 
   principal: z.boolean().optional(),
 
@@ -106,3 +72,25 @@ export const UpdateConteudoSchema = z.object({
 // Tipos inferidos do Zod
 export type CreateConteudoInput = z.infer<typeof CreateConteudoSchema>;
 export type UpdateConteudoInput = z.infer<typeof UpdateConteudoSchema>;
+
+/**
+ * Filtros da listagem de avisos e devocionais.
+ *
+ * O controller lia `Number(req.query.limit)` sem teto. Mesmo problema do
+ * mural de oração: um `?limit=999999` faz o servidor montar a resposta
+ * inteira na memória.
+ *
+ * O padrão é 15 — o tamanho de uma rolagem no app. A Home pede 3
+ * explicitamente, e continua podendo.
+ */
+export const ListarConteudosQuerySchema = z.object({
+  tipo: z.string().trim().optional(),
+  busca: z.string().trim().optional(),
+  orderBy: z.enum(["recent", "oldest"]).optional(),
+  incluirVencidos: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(15),
+  page: z.coerce.number().int().min(1).default(1),
+});

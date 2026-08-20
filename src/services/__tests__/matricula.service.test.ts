@@ -4,10 +4,26 @@ import { MatriculaService } from "../matricula.services";
 import { MatriculaRepository } from "../../repository/matricula.repository";
 import { UsuarioRepository } from "../../repository/usuario.repository";
 
+jest.mock("../../repository/usuario.repository");
+jest.mock("../../repository/matricula.repository");
+
 describe("MatriculaService", () => {
+  /**
+   * Automock da classe, não objeto escrito à mão.
+   *
+   * O que havia aqui era um literal com alguns métodos, empurrado ao tipo do
+   * repositório por `as unknown as jest.Mocked<...>` — cast que desliga a
+   * checagem e aceita um mock sem metade dos métodos. Quando o serviço ganhava
+   * um método novo, o teste quebrava em EXECUÇÃO, apontando para o mock em vez
+   * da mudança que causou.
+   *
+   * `jest.mock()` faz todos os métodos nascerem `jest.fn()`, e `jest.mocked`
+   * tipa sem cast: chamada para método inexistente volta a ser erro de
+   * compilação. Instância única — o `clearAllMocks` zera entre os testes.
+   */
+  const mockUsuarioRepository = jest.mocked(new UsuarioRepository());
+  const mockMatriculaRepository = jest.mocked(new MatriculaRepository());
   let service: MatriculaService;
-  let mockMatriculaRepository: jest.Mocked<MatriculaRepository>;
-  let mockUsuarioRepository: jest.Mocked<UsuarioRepository>;
 
   const mockUsuario = {
     id: 10,
@@ -16,21 +32,42 @@ describe("MatriculaService", () => {
     batizado: false,
   };
 
+  /**
+   * Toda sala mockada precisa de `publico` E `capacidade`.
+   *
+   * As duas colunas nasceram em migrações posteriores a estes testes, e o
+   * serviço lê as duas sem guarda:
+   *
+   * - `sala.publico.toLowerCase()` estoura com "Cannot read properties of
+   *   undefined". "Todos" é o valor que não restringe ninguém.
+   *
+   * - `sala.capacidade !== null` é VERDADEIRO quando o campo está ausente,
+   *   porque `undefined !== null`. O teste entrava na checagem de lotação sem
+   *   querer. `null` é como se representa turma sem limite — e é o que faz o
+   *   serviço pular a checagem, que é o certo para quem não está testando
+   *   capacidade.
+   */
   const mockSala = {
     id: 5,
     status: "ativa",
+    publico: "Todos",
+    capacidade: null,
     curso: { criadorUsuarioId: 3, categoria: "Geral" },
   };
 
   const mockSalaDeOutroLider = {
     id: 7,
     status: "ativa",
+    publico: "Todos",
+    capacidade: null,
     curso: { criadorUsuarioId: 99, categoria: "Geral" },
   };
 
   const mockSalaBatismo = {
     id: 8,
     status: "ativa",
+    publico: "Todos",
+    capacidade: null,
     curso: { criadorUsuarioId: 3, categoria: "Batismo" },
   };
 
@@ -48,23 +85,6 @@ describe("MatriculaService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockUsuarioRepository = {
-      buscarPorId: jest.fn(),
-      marcarBatizado: jest.fn(),
-    } as unknown as jest.Mocked<UsuarioRepository>;
-
-    mockMatriculaRepository = {
-      matricular: jest.fn(),
-      buscarMatricula: jest.fn(),
-      salaExiste: jest.fn(),
-      atualizarStatus: jest.fn(),
-      removerParticipante: jest.fn(),
-      listarParticipantes: jest.fn(),
-      contarParticipantes: jest.fn().mockResolvedValue(1),
-      buscarHistoricoPorUsuario: jest.fn(),
-      buscarMatriculaBatismoAtiva: jest.fn().mockResolvedValue(false),
-    } as unknown as jest.Mocked<MatriculaRepository>;
 
     service = new MatriculaService(
       mockMatriculaRepository,

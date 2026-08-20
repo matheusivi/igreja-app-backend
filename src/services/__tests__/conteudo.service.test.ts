@@ -9,10 +9,26 @@ import type {
   ListarConteudosDTO,
 } from "../../dtos/conteudo.dto";
 
+jest.mock("../../repository/usuario.repository");
+jest.mock("../../repository/conteudo.repository");
+
 describe("ConteudoService", () => {
+  /**
+   * Automock da classe, não objeto escrito à mão.
+   *
+   * O que havia aqui era um literal com alguns métodos, empurrado ao tipo do
+   * repositório por `as unknown as jest.Mocked<...>` — cast que desliga a
+   * checagem e aceita um mock sem metade dos métodos. Quando o serviço ganhava
+   * um método novo, o teste quebrava em EXECUÇÃO, apontando para o mock em vez
+   * da mudança que causou.
+   *
+   * `jest.mock()` faz todos os métodos nascerem `jest.fn()`, e `jest.mocked`
+   * tipa sem cast: chamada para método inexistente volta a ser erro de
+   * compilação. Instância única — o `clearAllMocks` zera entre os testes.
+   */
+  const mockUsuarioRepository = jest.mocked(new UsuarioRepository());
+  const mockConteudoRepository = jest.mocked(new ConteudoRepository());
   let service: ConteudoService;
-  let mockUsuarioRepository: jest.Mocked<UsuarioRepository>;
-  let mockConteudoRepository: jest.Mocked<ConteudoRepository>;
 
   const mockUsuario = {
     id: 1,
@@ -38,20 +54,6 @@ describe("ConteudoService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUsuarioRepository = {
-      buscarPorId: jest.fn(),
-    } as unknown as jest.Mocked<UsuarioRepository>;
-
-    mockConteudoRepository = {
-      criar: jest.fn(),
-      buscarPorId: jest.fn(),
-      listar: jest.fn(),
-      atualizar: jest.fn(),
-      deletar: jest.fn(),
-      buscarParaPermissao: jest.fn(),
-      contar: jest.fn().mockResolvedValue(1),
-    } as unknown as jest.Mocked<ConteudoRepository>;
-
     service = new ConteudoService(
       mockUsuarioRepository,
       mockConteudoRepository,
@@ -66,11 +68,20 @@ describe("ConteudoService", () => {
       mockUsuarioRepository.buscarPorId.mockResolvedValue(mockUsuario as any);
       mockConteudoRepository.criar.mockResolvedValue(mockConteudo as any);
 
+      /**
+       * `texto` e `formato` saíram do DTO quando o conteúdo virou uma
+       * SEQUÊNCIA DE BLOCOS. Os dois continuam existindo na resposta, mas
+       * agora são derivados pelo servidor a partir dos blocos — mandar os
+       * dois seria o cliente afirmando algo que o servidor recalcula.
+       *
+       * O teste ficou para trás nessa mudança e só apareceu agora, ao
+       * compilar tudo de uma vez: `jest` roda cada arquivo isolado, e este
+       * caso nunca era exercitado com verificação de tipo completa.
+       */
       const dto: CreateConteudoDTO = {
         tipo: "Aviso",
         titulo: "Meu primeiro post",
-        texto: "Conteúdo de teste",
-        formato: "texto",
+        blocos: [{ tipo: "texto", valor: "Conteúdo de teste" }],
       };
 
       const resultado = await service.create(dto, 1);

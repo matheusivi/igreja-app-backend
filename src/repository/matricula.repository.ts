@@ -67,6 +67,7 @@ export class MatriculaRepository {
         id: true,
         status: true,
         capacidade: true,
+        publico: true,
         curso: {
           select: {
             criadorUsuarioId: true,

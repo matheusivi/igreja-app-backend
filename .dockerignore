@@ -1,0 +1,32 @@
+# O que NÃO entra na imagem.
+#
+# O primeiro item é o que importa: sem ele, o `.env` com a senha do banco, o
+# segredo do JWT e as chaves de Cloudinary e Resend seria copiado para dentro
+# da imagem — e ficaria lá, legível, para qualquer um que puxasse a imagem ou
+# rodasse `docker history`. As variáveis chegam pelo compose, em tempo de
+# execução, e nunca são assadas no build.
+.env
+.env.*
+!.env.example
+
+node_modules
+dist
+coverage
+
+.git
+.gitignore
+.gitattributes
+
+# Testes e relatórios não têm função na imagem de produção.
+**/__tests__
+jest.config.js
+
+# Documentação
+*.md
+!README.md
+
+# Lixo de editor e sistema
+.vscode
+.idea
+.DS_Store
+*.log

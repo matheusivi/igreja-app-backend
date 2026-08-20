@@ -8,6 +8,7 @@ const PASTAS_VALIDAS: PastaUpload[] = [
   "eventos",
   "conteudos",
   "familias",
+  "hero",
 ];
 
 export class UploadController {

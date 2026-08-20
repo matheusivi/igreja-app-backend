@@ -44,13 +44,22 @@ export class PedidoOracaoService {
   public async list(
     filters: ListPedidosOracaoDTO = {},
   ): Promise<ListarPedidosOracaoResponse> {
-    const { busca, limit = 20, page = 1 } = filters;
+    const { busca, limit = 15, page = 1, somenteDoUsuarioId } = filters;
 
     const skip = (page - 1) * limit;
 
     const whereClause: Prisma.PedidoOracaoWhereInput = {};
     if (busca) {
       whereClause.descricaoPedido = { contains: busca, mode: "insensitive" };
+    }
+
+    // A aba "Meus pedidos". O id vem do token, no controller — aqui ele já
+    // chega decidido, e o serviço não tem como ser enganado por query string.
+    //
+    // A coluna é `autorUsuarioId`, não `usuarioId`: o `tsc` pegou o erro antes
+    // de virar consulta silenciosamente sem filtro.
+    if (somenteDoUsuarioId !== undefined) {
+      whereClause.autorUsuarioId = somenteDoUsuarioId;
     }
 
     const [pedidos, total] = await Promise.all([

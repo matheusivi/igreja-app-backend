@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">25% </span>
+                <span class="strong">21.73% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>6/24</span>
+                <span class='fraction'>5/23</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">30% </span>
+                <span class="strong">26.31% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>6/20</span>
+                <span class='fraction'>5/19</span>
             </div>
         
             
@@ -203,20 +203,12 @@
 <a name='L138'></a><a href='#L138'>138</a>
 <a name='L139'></a><a href='#L139'>139</a>
 <a name='L140'></a><a href='#L140'>140</a>
-<a name='L141'></a><a href='#L141'>141</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -227,11 +219,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -347,31 +357,36 @@
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 &nbsp;
-// Selects com tipagem correta
-const includeCurso = {
+/**
+ * Curso + líder + contagem de matrículas ativas.
+ *
+ * O `_count` é filtrado por status "ativo" de propósito: quem cancelou ou
+ * desistiu não ocupa vaga, então contar todas as linhas daria uma lotação
+ * falsa e bloquearia turmas que na verdade têm lugar.
+ */
+const includeCompleto = {
   curso: {
     select: {
       id: true,
       nome: true,
     },
   },
-} satisfies Prisma.SalaCursoInclude;
-&nbsp;
-const includeCursoComCriador = {
-  curso: {
-    include: {
-      criador: {
-        select: {
-          id: true,
-          nomeCompleto: true,
-          perfil: true,
-        },
-      },
+  lider: {
+    select: {
+      id: true,
+      nomeCompleto: true,
+      fotoUrl: true,
+    },
+  },
+  _count: {
+    select: {
+      participantes: { where: { status: "ativo" } },
     },
   },
 } satisfies Prisma.SalaCursoInclude;
 &nbsp;
 const includeCursoComCategoria = {
+  ...includeCompleto,
   curso: {
     select: {
       id: true,
@@ -396,7 +411,7 @@ export class SalaCursoRepository {
 <span class="fstat-no" title="function not covered" >  async </span>criar(data: Prisma.SalaCursoCreateInput) {
 <span class="cstat-no" title="statement not covered" >    return prisma.salaCurso.create({</span>
       data,
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 &nbsp;
@@ -406,7 +421,7 @@ export class SalaCursoRepository {
 <span class="fstat-no" title="function not covered" >  async </span>buscarPorId(id: number) {
 <span class="cstat-no" title="statement not covered" >    return prisma.salaCurso.findUnique({</span>
       where: { id },
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 &nbsp;
@@ -446,7 +461,7 @@ export class SalaCursoRepository {
     skip?: number;
   }) {
     const query: Prisma.SalaCursoFindManyArgs = <span class="cstat-no" title="statement not covered" >{</span>
-      include: includeCursoComCriador,
+      include: includeCompleto,
     };
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    if (params.where) <span class="cstat-no" title="statement not covered" >query.where = params.where;</span></span>
@@ -470,7 +485,7 @@ export class SalaCursoRepository {
 <span class="cstat-no" title="statement not covered" >    return prisma.salaCurso.update({</span>
       where: { id },
       data,
-      include: includeCurso,
+      include: includeCompleto,
     });
   }
 &nbsp;
@@ -490,7 +505,7 @@ export class SalaCursoRepository {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-07-03T21:20:51.360Z
+                at 2026-08-19T23:13:36.206Z
             </div>
         <script src="../prettify.js"></script>
         <script>

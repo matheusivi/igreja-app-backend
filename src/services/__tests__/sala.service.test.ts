@@ -9,10 +9,26 @@ import type {
   ListSalasQuery,
 } from "../../dtos/sala.dto";
 
+jest.mock("../../repository/usuario.repository");
+jest.mock("../../repository/salaCurso.repository");
+
 describe("SalaService", () => {
+  /**
+   * Automock da classe, não objeto escrito à mão.
+   *
+   * O que havia aqui era um literal com alguns métodos, empurrado ao tipo do
+   * repositório por `as unknown as jest.Mocked<...>` — cast que desliga a
+   * checagem e aceita um mock sem metade dos métodos. Quando o serviço ganhava
+   * um método novo, o teste quebrava em EXECUÇÃO, apontando para o mock em vez
+   * da mudança que causou.
+   *
+   * `jest.mock()` faz todos os métodos nascerem `jest.fn()`, e `jest.mocked`
+   * tipa sem cast: chamada para método inexistente volta a ser erro de
+   * compilação. Instância única — o `clearAllMocks` zera entre os testes.
+   */
+  const mockUsuarioRepository = jest.mocked(new UsuarioRepository());
+  const mockSalaCursoRepository = jest.mocked(new SalaCursoRepository());
   let service: SalaService;
-  let mockUsuarioRepository: jest.Mocked<UsuarioRepository>;
-  let mockSalaCursoRepository: jest.Mocked<SalaCursoRepository>;
 
   const mockCursoComCriador = {
     id: 10,
@@ -35,22 +51,6 @@ describe("SalaService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockUsuarioRepository = {
-      buscarPorId: jest.fn(),
-    } as unknown as jest.Mocked<UsuarioRepository>;
-
-    mockSalaCursoRepository = {
-      cursoExiste: jest.fn(),
-      criar: jest.fn(),
-      buscarPorId: jest.fn(),
-      buscarPorIdComCategoria: jest.fn(),
-      listar: jest.fn(),
-      buscarParaPermissao: jest.fn(),
-      atualizar: jest.fn(),
-      deletar: jest.fn(),
-      contar: jest.fn().mockResolvedValue(1),
-    } as unknown as jest.Mocked<SalaCursoRepository>;
 
     service = new SalaService(mockUsuarioRepository, mockSalaCursoRepository);
   });
@@ -85,19 +85,31 @@ describe("SalaService", () => {
       mockSalaCursoRepository.contar.mockResolvedValue(1); // adicionar
       const resultado = await service.list({}, "Masculino");
 
+      /**
+       * O `where` mudou duas vezes desde que este teste foi escrito, e ele
+       * ficou para trás nas duas:
+       *
+       * 1. `status: "ativa"` deixou de ser fixo. Turma encerrada sumia do app
+       *    até para quem participou dela; agora quem decide é a tela, e
+       *    `service.list({})` — sem filtro — não gera cláusula de status.
+       *
+       * 2. Entrou o filtro de PÚBLICO da turma. Ele complementa o de
+       *    categoria: um curso "Geral" pode ter uma turma só de homens e
+       *    outra só de mulheres, e a categoria sozinha não separa as duas.
+       */
       expect(mockSalaCursoRepository.listar).toHaveBeenCalledWith({
         where: {
           AND: [
-            { status: "ativa" },
             {
               curso: {
                 is: {
                   categoria: {
-                    in: ["Casais", "Jovens", "Geral", "Batismo", "Homens" ],
+                    in: ["Casais", "Jovens", "Geral", "Batismo", "Homens"],
                   },
                 },
               },
             },
+            { OR: [{ publico: "Todos" }, { publico: "Homens" }] },
           ],
         },
         orderBy: { id: "desc" },

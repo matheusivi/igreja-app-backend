@@ -1,0 +1,106 @@
+# ╔═══════════════════════════════════════════════════════════════════════╗
+# ║  BANCO + API                                                          ║
+# ╚═══════════════════════════════════════════════════════════════════════╝
+#
+# ═══ POR QUE O NGINX NÃO ESTÁ AQUI ═══
+# Você já tem outro app rodando nesta VPS, e ele ocupa as portas 80 e 443. Um
+# contêiner de Nginx brigaria por elas e derrubaria o que já funciona.
+#
+# Então quem atende a internet continua sendo o Nginx do HOST, e ele repassa
+# para cá. Ver `deploy/nginx-api.conf`.
+#
+# ═══ NADA AQUI É EXPOSTO PARA A INTERNET ═══
+# Repare no `127.0.0.1:` na frente das portas. Sem isso o Docker abre a porta
+# em TODAS as interfaces — e, pior, escreve a regra direto no iptables, PASSANDO
+# POR CIMA do ufw. O firewall mostraria a porta como bloqueada enquanto ela
+# está aberta para o mundo. É uma das formas mais comuns de deixar um Postgres
+# exposto sem perceber.
+
+services:
+  # ─────────────────────────────────────────────────────────────────────
+  # Banco de dados
+  # ─────────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      # Sem isso o Postgres compara texto por regra do sistema, e ordenação
+      # e acentuação em nome de pessoa saem erradas.
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+
+    volumes:
+      # Volume NOMEADO, não pasta do host: é o que faz o banco sobreviver a
+      # `docker compose down`, a recriar o contêiner e a trocar a imagem.
+      - dados_postgres:/var/lib/postgresql/data
+
+    # Só para você conseguir abrir o banco de fora por um túnel SSH quando
+    # precisar. `127.0.0.1` garante que a porta não existe para a internet.
+    ports:
+      - "127.0.0.1:5432:5432"
+
+    # A API espera este healthcheck ficar verde. Sem ele, o contêiner da API
+    # sobe, tenta migrar, encontra o Postgres ainda inicializando e morre —
+    # que é a corrida clássica de compose em máquina lenta.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────────────────────────────────
+  # API
+  # ─────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+      # `db` é o nome do serviço acima — o Docker resolve isso como endereço
+      # na rede interna. Não use `localhost` aqui: dentro do contêiner da API,
+      # `localhost` é ela mesma, não o banco.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+
+      JWT_SECRET: ${JWT_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_REMETENTE: ${EMAIL_REMETENTE}
+      PAYLOAD_SIZE: ${PAYLOAD_SIZE:-100kb}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    # Teto de memória. A VPS tem 4 GB e roda outro app; sem limite, um vazamento
+    # aqui leva o servidor inteiro junto, não só a igreja.
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+    logging:
+      driver: json-file
+      options:
+        # Sem isto o log cresce até encher o disco. Não é hipótese: é o jeito
+        # mais comum de uma VPS parar depois de meses funcionando bem.
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  dados_postgres:

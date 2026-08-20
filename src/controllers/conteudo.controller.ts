@@ -4,6 +4,7 @@ import type { AuthRequest } from "../middlewares/auth.middleware";
 import { ConteudoService } from "../services/conteudo.services";
 import {
   CreateConteudoSchema,
+  ListarConteudosQuerySchema,
   UpdateConteudoSchema,
 } from "../validation/conteudo.validation";
 import { AppError } from "../utils/AppError";
@@ -43,14 +44,16 @@ export class ConteudoController {
   };
 
   public list = async (req: AuthRequest, res: Response): Promise<void> => {
-    const { tipo, busca, limit, page, orderBy } = req.query;
+    const { tipo, busca, limit, page, orderBy, incluirVencidos } =
+      ListarConteudosQuerySchema.parse(req.query);
 
     const resultado = await this.conteudoService.list({
-      tipo: tipo as string | undefined,
-      busca: busca as string | undefined,
-      limit: limit ? Number(limit) : undefined,
-      page: page ? Number(page) : undefined,
-      orderBy: orderBy as 'recent' | 'oldest' | undefined,
+      ...(tipo ? { tipo } : {}),
+      ...(busca ? { busca } : {}),
+      ...(orderBy ? { orderBy } : {}),
+      limit,
+      page,
+      incluirVencidos: incluirVencidos ?? false,
     });
 
     res.status(200).json({

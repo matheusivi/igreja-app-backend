@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthRequest } from "../middlewares/auth.middleware";
 import { UsuarioService } from "../services/usuario.services";
 import {
+  ListarProfissionaisQuerySchema,
   ListarUsuariosQuerySchema,
   MesQuerySchema,
 } from "../validation/usuario.validation";
@@ -13,6 +14,21 @@ export class UsuarioController {
   constructor() {
     this.usuarioService = new UsuarioService();
   }
+
+  public profissionais = async (
+    req: AuthRequest,
+    res: Response,
+  ): Promise<void> => {
+    const { busca, page, limit } = ListarProfissionaisQuerySchema.parse(req.query);
+
+    const resultado = await this.usuarioService.listarProfissionais(
+      busca,
+      page,
+      limit,
+    );
+
+    res.status(200).json({ success: true, ...resultado });
+  };
 
   public listar = async (req: AuthRequest, res: Response): Promise<void> => {
     const query = ListarUsuariosQuerySchema.parse(req.query);

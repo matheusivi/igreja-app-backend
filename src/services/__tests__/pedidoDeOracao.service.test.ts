@@ -29,6 +29,9 @@ const makeUsuario = (overrides = {}) => ({
   fotoUrl: null,
   profissao: null,
   batizado: false,
+  telefone: null,
+  especializacao: null,
+  divulgarTrabalho: false,
   ...overrides,
 });
 
@@ -115,10 +118,19 @@ describe("PedidoOracaoService", () => {
 
       const resultado = await service.list();
 
+      /**
+       * 15, e não 20. O mural passou a carregar de 15 em 15 quando entrou a
+       * rolagem infinita, e este teste ficou para trás.
+       *
+       * O número aparece em três lugares que precisam concordar: o padrão
+       * deste serviço, o `default` do `ListarPedidosOracaoQuerySchema` e o
+       * `POR_PAGINA` do app. Se um dia divergirem, é aqui que aparece — que é
+       * exatamente o serviço que este teste presta.
+       */
       expect(pedidoRepo.listar).toHaveBeenCalledWith(
         expect.objectContaining({
           orderBy: { dataEnvio: "desc" },
-          take: 20,
+          take: 15,
           skip: 0,
         }),
       );

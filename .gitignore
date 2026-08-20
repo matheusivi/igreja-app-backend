@@ -2,3 +2,14 @@ node_modules
 dist
 .env
 *.log
+
+# Relatório de cobertura de teste: é gerado por `npm run test:coverage` e muda
+# a cada execução. Estava versionado — 40 arquivos de HTML com o código-fonte
+# duplicado dentro, que ninguém lê e que sujam todo diff.
+coverage
+
+# Rascunhos. Ficavam na raiz com nome de arquivo temporário e sobreviveram a
+# várias limpezas justamente por não estarem listados em lugar nenhum.
+_*.ts
+_*.mjs
+_*.js

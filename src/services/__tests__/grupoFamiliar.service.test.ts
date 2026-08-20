@@ -28,6 +28,9 @@ const makeUsuario = (overrides = {}) => ({
   fotoUrl: null,
   profissao: null,
   batizado: false,
+  telefone: null,
+  especializacao: null,
+  divulgarTrabalho: false,
   ...overrides,
 });
 
@@ -36,13 +39,18 @@ const makeMembro = (overrides = {}) => ({
   usuarioId: 1, // adicionar
   grupoFamiliarId: 1, // adicionar
   convidadoPorId: 1, // adicionar
-  parentesco: "Criador",
+  // "Criador" deixou de ser papel: quem abriu o grupo está em
+  // `criadorUsuarioId`. Aqui vira um papel real da lista fechada.
+  parentesco: "pai",
   status: "aceito",
   usuario: {
     id: 1,
     nomeCompleto: "João Silva",
     perfil: "Membro",
     fotoUrl: null,
+    // O papel é guardado com chave neutra e exibido com a palavra certa
+    // ("Filha") a partir daqui.
+    sexo: "Masculino",
   },
   convidadoPor: {
     id: 1,
@@ -54,6 +62,7 @@ const makeMembro = (overrides = {}) => ({
 const makeGrupo = (overrides = {}) => ({
   id: 1,
   nome: "Família Silva",
+  imagemUrl: null,
   criadorUsuarioId: 1,
   membros: [makeMembro()],
   ...overrides,
@@ -223,21 +232,48 @@ describe("GrupoFamiliarService", () => {
   // RESPONDER CONVITE
   // ========================
   describe("responderConvite", () => {
-    it("deve aceitar convite com sucesso", async () => {
+    /**
+     * Aceitar deixou de ser um `update` solto.
+     *
+     * Agora passa por `aceitarConvite`, que numa TRANSAÇÃO marca este convite
+     * como aceito e recusa os demais pendentes da pessoa — eles já estavam
+     * mortos, porque cada pessoa pertence a uma família por vez.
+     *
+     * Recusar continua no caminho simples: sair nunca precisa de transação.
+     */
+    it("deve aceitar convite e recusar os demais pendentes", async () => {
       grupoRepo.buscarMembroPorId.mockResolvedValue({
         id: 1,
         usuarioId: 2,
         grupoFamiliarId: 1,
         status: "pendente",
       });
-      grupoRepo.atualizarStatusConvite.mockResolvedValue({} as any);
+      // Sem família ainda — senão a regra "uma por pessoa" barraria.
+      grupoRepo.contarPorUsuario.mockResolvedValue(0);
+      grupoRepo.aceitarConvite.mockResolvedValue([] as any);
 
       await service.responderConvite(1, { status: "aceito" }, 2);
 
-      expect(grupoRepo.atualizarStatusConvite).toHaveBeenCalledWith(
-        1,
-        "aceito",
-      );
+      expect(grupoRepo.aceitarConvite).toHaveBeenCalledWith(1, 2);
+      // O caminho antigo não pode ser usado para aceitar: se fosse, os
+      // convites órfãos ficariam vivos e dando erro no topo da tela.
+      expect(grupoRepo.atualizarStatusConvite).not.toHaveBeenCalled();
+    });
+
+    it("deve barrar quem já faz parte de uma família", async () => {
+      grupoRepo.buscarMembroPorId.mockResolvedValue({
+        id: 1,
+        usuarioId: 2,
+        grupoFamiliarId: 1,
+        status: "pendente",
+      });
+      grupoRepo.contarPorUsuario.mockResolvedValue(1);
+
+      await expect(
+        service.responderConvite(1, { status: "aceito" }, 2),
+      ).rejects.toThrow("Você já faz parte de um grupo familiar");
+
+      expect(grupoRepo.aceitarConvite).not.toHaveBeenCalled();
     });
 
     it("deve recusar convite com sucesso", async () => {

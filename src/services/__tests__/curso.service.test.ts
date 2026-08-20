@@ -9,10 +9,26 @@ import type {
   ListCursosQuery,
 } from "../../dtos/curso.dto";
 
+jest.mock("../../repository/usuario.repository");
+jest.mock("../../repository/curso.repository");
+
 describe("CursoService", () => {
+  /**
+   * Automock da classe, não objeto escrito à mão.
+   *
+   * O que havia aqui era um literal com alguns métodos, empurrado ao tipo do
+   * repositório por `as unknown as jest.Mocked<...>` — cast que desliga a
+   * checagem e aceita um mock sem metade dos métodos. Quando o serviço ganhava
+   * um método novo, o teste quebrava em EXECUÇÃO, apontando para o mock em vez
+   * da mudança que causou.
+   *
+   * `jest.mock()` faz todos os métodos nascerem `jest.fn()`, e `jest.mocked`
+   * tipa sem cast: chamada para método inexistente volta a ser erro de
+   * compilação. Instância única — o `clearAllMocks` zera entre os testes.
+   */
+  const mockUsuarioRepository = jest.mocked(new UsuarioRepository());
+  const mockCursoRepository = jest.mocked(new CursoRepository());
   let service: CursoService;
-  let mockUsuarioRepository: jest.Mocked<UsuarioRepository>;
-  let mockCursoRepository: jest.Mocked<CursoRepository>;
 
   const mockUsuario = {
     id: 1,
@@ -23,6 +39,9 @@ describe("CursoService", () => {
     dataNascimento: null,
     sexo: "Masculino",
     batizado: false,
+    telefone: null,
+    especializacao: null,
+    divulgarTrabalho: false,
     exibirAniversario: true,
     estadoCivil: null,
     fotoUrl: null,
@@ -35,26 +54,14 @@ describe("CursoService", () => {
     nome: "Curso de TypeScript Avançado",
     descricaoMaterial: "Material completo...",
     categoria: "Programação",
+    duracao: null,
+    publicoAlvo: null,
+    capitulos: [],
     criador: mockUsuario,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    mockUsuarioRepository = {
-      buscarPorId: jest.fn(),
-    } as unknown as jest.Mocked<UsuarioRepository>;
-
-    mockCursoRepository = {
-      criar: jest.fn(),
-      buscarPorId: jest.fn(),
-      listar: jest.fn(),
-      atualizar: jest.fn(),
-      deletar: jest.fn(),
-      buscarParaPermissao: jest.fn(),
-      contarAlunosAtivos: jest.fn().mockResolvedValue(0),
-      contar: jest.fn().mockResolvedValue(1),
-    } as unknown as jest.Mocked<CursoRepository>;
 
     service = new CursoService(mockUsuarioRepository, mockCursoRepository);
   });
@@ -81,6 +88,8 @@ describe("CursoService", () => {
         nome: "Curso de TypeScript Avançado",
         descricaoMaterial: "Material completo...",
         categoria: "Programação",
+        duracao: null,
+        publicoAlvo: null,
       });
 
       expect(resultado.nome).toBe("Curso de TypeScript Avançado");
@@ -106,6 +115,8 @@ describe("CursoService", () => {
         nome: "Curso sem descrição",
         descricaoMaterial: null,
         categoria: "Programação",
+        duracao: null,
+        publicoAlvo: null,
       });
 
       expect(resultado.descricaoMaterial).toBeUndefined();
@@ -250,21 +261,24 @@ describe("CursoService", () => {
   // DELETE
   // ========================
   describe("delete", () => {
-    it("deve deletar quando o usuário é o criador", async () => {
+    it("deve deletar quando o criador exclui um curso sem matrículas", async () => {
       mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
-      mockCursoRepository.contarAlunosAtivos.mockResolvedValue(0); // sem alunos ativos
+      mockCursoRepository.contarMatriculas.mockResolvedValue(0);
 
       await service.delete(5, 1, "Usuario");
 
       expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
     });
 
-    it("deve deletar quando usuário é Administrador", async () => {
+    it("deve permitir que o Administrador exclua mesmo com histórico", async () => {
       mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
-      mockCursoRepository.contarAlunosAtivos.mockResolvedValue(0);
+      mockCursoRepository.contarMatriculas.mockResolvedValue(42);
 
       await service.delete(5, 999, "Administrador");
+
       expect(mockCursoRepository.deletar).toHaveBeenCalledWith(5);
+      // Administrador nem chega a ser checado contra o histórico.
+      expect(mockCursoRepository.contarMatriculas).not.toHaveBeenCalled();
     });
 
     it("deve lançar erro de permissão", async () => {
@@ -287,13 +301,12 @@ describe("CursoService", () => {
       expect(mockCursoRepository.deletar).not.toHaveBeenCalled();
     });
 
-    // novo cenário
-    it("deve lançar erro ao tentar deletar curso com alunos ativos", async () => {
+    it("deve barrar quem não é Administrador quando o curso já tem histórico", async () => {
       mockCursoRepository.buscarParaPermissao.mockResolvedValue(mockCurso);
-      mockCursoRepository.contarAlunosAtivos.mockResolvedValue(3); // com alunos
+      mockCursoRepository.contarMatriculas.mockResolvedValue(3);
 
       await expect(service.delete(5, 1, "Usuario")).rejects.toThrow(
-        "Este curso não pode ser excluído pois há alunos com matrículas ativas.",
+        "Este curso já tem 3 matrícula(s) registradas.",
       );
 
       expect(mockCursoRepository.deletar).not.toHaveBeenCalled();

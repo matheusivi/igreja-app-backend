@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+/** Quem pode participar da turma. */
+const publicoSchema = z.enum(['Todos', 'Homens', 'Mulheres'], {
+  error: 'Público inválido. Use: Todos, Homens ou Mulheres',
+});
+
 export const CreateSalaSchema = z.object({
   cursoId: z.number({ error: 'ID do curso é obrigatório' }).int().positive(),
 
@@ -16,6 +21,8 @@ export const CreateSalaSchema = z.object({
     z.number().int().positive('A capacidade deve ser maior que zero'),
     z.null(),
   ]).optional(),
+
+  publico: publicoSchema.optional(),
 
 }).refine(
   (data) => {
@@ -48,6 +55,8 @@ export const UpdateSalaSchema = z.object({
     z.number().int().positive('A capacidade deve ser maior que zero'),
     z.null(),
   ]).optional(),
+
+  publico: publicoSchema.optional(),
 
 }).refine(
   (data) => {
