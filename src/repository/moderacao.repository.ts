@@ -57,6 +57,31 @@ export class ModeracaoRepository {
     return prisma.denuncia.count({ where: { resolvidaEm: null } });
   }
 
+  /**
+   * O texto denunciado, para a liderança poder julgar.
+   *
+   * ═══ POR QUE NÃO É UM `include` NA CONSULTA ACIMA ═══
+   * `Denuncia` não tem relação com `PedidoOracao` no schema — ela guarda um
+   * `tipo` e um `alvoId` soltos, porque um dia pode apontar para devocional ou
+   * comentário. Relação polimórfica é o preço dessa flexibilidade, e o Prisma
+   * não sabe seguir.
+   *
+   * Então busca-se em lote, com um `in`, e o serviço junta. É UMA consulta a
+   * mais por página de denúncias — não uma por denúncia.
+   */
+  async buscarPedidosPorIds(ids: number[]) {
+    if (ids.length === 0) return [];
+    return prisma.pedidoOracao.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        descricaoPedido: true,
+        dataEnvio: true,
+        autor: { select: { id: true, nomeCompleto: true, perfil: true } },
+      },
+    });
+  }
+
   async marcarResolvida(id: number) {
     return prisma.denuncia.update({
       where: { id },

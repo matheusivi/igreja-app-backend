@@ -68,7 +68,19 @@ export class ModeracaoService {
     await this.repo.denunciar(params);
   }
 
-  /** A fila da liderança. Membro comum não vê denúncia de ninguém. */
+  /**
+   * A fila da liderança. Membro comum não vê denúncia de ninguém.
+   *
+   * ═══ O TEXTO DENUNCIADO VEM JUNTO ═══
+   * Sem ele a tela mostraria "Fulano denunciou algo por conteúdo ofensivo" e
+   * nada mais — a liderança teria que ir ao mural caçar o pedido para decidir.
+   * Uma exigência de resposta em 24 horas não sobrevive a esse atrito.
+   *
+   * ═══ `conteudo` PODE VIR NULO ═══
+   * Quando o pedido já foi apagado — pelo autor, ou por outro líder que agiu
+   * antes. Não é erro: é o caso mais comum de denúncia bem resolvida, e a tela
+   * usa isso para oferecer só o arquivamento.
+   */
   async listarPendentes(perfil: string, page: number, limit: number) {
     this.exigirLideranca(perfil);
 
@@ -77,7 +89,21 @@ export class ModeracaoService {
       this.repo.contarPendentes(),
     ]);
 
-    return { data: denuncias, total, page, totalPages: Math.ceil(total / limit) };
+    const idsDePedido = denuncias
+      .filter((d) => d.tipo === "pedido_oracao")
+      .map((d) => d.alvoId);
+
+    const pedidos = await this.repo.buscarPedidosPorIds(idsDePedido);
+    // Mapa em vez de `find` dentro do laço: com 20 denúncias e 20 pedidos, o
+    // `find` faria 400 comparações para responder 20 perguntas.
+    const porId = new Map(pedidos.map((p) => [p.id, p]));
+
+    const data = denuncias.map((d) => ({
+      ...d,
+      conteudo: d.tipo === "pedido_oracao" ? (porId.get(d.alvoId) ?? null) : null,
+    }));
+
+    return { data, total, page, totalPages: Math.ceil(total / limit) };
   }
 
   async resolver(id: number, perfil: string) {
