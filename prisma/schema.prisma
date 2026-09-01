@@ -17,7 +17,12 @@ model Usuario {
   batizado Boolean @default(false)
   estadoCivil       String?
   fotoUrl           String?  
-  sexo              String // "Masculino", "Feminino"
+  /// "Masculino" ou "Feminino". Obrigatório no cadastro.
+  ///
+  /// Virou opcional na coluna só por causa da exclusão de conta: sexo é dado
+  /// pessoal e precisa ser destruído junto com o resto. A validação do
+  /// cadastro continua exigindo — quem se cadastra informa; quem sai, apaga.
+  sexo              String?
   profissao         String?
 
   /// Quando a senha foi trocada pela última vez.
@@ -31,6 +36,28 @@ model Usuario {
   /// qualquer um emitido antes. Nulo significa "nunca trocou", e aí não há o
   /// que comparar — é o estado de todas as contas já existentes.
   senhaAlteradaEm   DateTime?
+
+  /// Quando a pessoa pediu a exclusão da própria conta.
+  ///
+  /// ═══ POR QUE A LINHA NÃO É APAGADA ═══
+  /// Avisos, cursos, eventos e grupos familiares guardam quem os criou, e o
+  /// banco recusa apagar um usuário que tenha qualquer um deles. Apagar de
+  /// verdade significaria levar junto o conteúdo da igreja — os avisos de um
+  /// líder sumiriam com ele.
+  ///
+  /// A saída é anonimizar: todo dado pessoal é destruído e todo registro
+  /// pessoal é apagado; sobra uma casca sem informação nenhuma, só para as
+  /// chaves estrangeiras do conteúdo institucional continuarem válidas.
+  ///
+  /// É irreversível. Não existe caminho de volta no código, de propósito —
+  /// "desativar e poder voltar" não conta como exclusão para Google nem Apple.
+  ///
+  /// ⚠️  Esta escolha PRECISA estar escrita na política de privacidade.
+  contaRemovidaEm   DateTime?
+
+  denunciasFeitas     Denuncia[] @relation("DenunciasFeitas")
+  bloqueiosFeitos     Bloqueio[] @relation("BloqueiosFeitos")
+  bloqueiosRecebidos  Bloqueio[] @relation("BloqueiosRecebidos")
 
   // ── Divulgação de trabalho na comunidade ─────────────────────────────
   // `divulgarTrabalho` é opt-in explícito, e não derivado de ter profissão
@@ -87,6 +114,60 @@ model Conteudo {
   usuario        Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("conteudos")
+}
+
+/// Denúncia de conteúdo escrito por outra pessoa.
+///
+/// ═══ POR QUE ISTO EXISTE ═══
+/// O mural de oração é texto de uma pessoa lido por todas as outras. Para as
+/// lojas, isso é "conteúdo gerado por usuário", e a regra exige quatro coisas:
+/// filtrar, DENUNCIAR, BLOQUEAR quem abusa, e ter contato publicado. Sem elas
+/// o app é reprovado — não por qualidade, por checklist.
+///
+/// Mas a razão de verdade não é a loja. Numa igreja, o mural é onde alguém
+/// escreve o que está passando. Se aparecer ali algo agressivo ou constrangedor,
+/// a pessoa atingida precisa ter o que fazer no mesmo instante — e não esperar
+/// achar um líder no domingo.
+model Denuncia {
+  id            Int       @id @default(autoincrement())
+  /// Hoje só "pedido_oracao". Existe como texto porque um dia pode haver
+  /// comentário ou devocional, e migrar enum é mais caro que ler texto.
+  tipo          String
+  alvoId        Int
+  denuncianteId Int
+  motivo        String
+  criadaEm      DateTime  @default(now())
+  /// Nulo enquanto a liderança não tiver olhado.
+  resolvidaEm   DateTime?
+
+  denunciante Usuario @relation("DenunciasFeitas", fields: [denuncianteId], references: [id], onDelete: Cascade)
+
+  /// Uma denúncia por pessoa por conteúdo: tocar duas vezes no botão não
+  /// inflaciona a contagem nem cria fila de trabalho repetida.
+  @@unique([tipo, alvoId, denuncianteId])
+  /// A consulta da liderança é sempre "o que ainda não foi resolvido".
+  @@index([resolvidaEm])
+  @@map("denuncias")
+}
+
+/// Bloqueio de uma pessoa por outra.
+///
+/// Vale só em uma direção e só para quem bloqueou: some do mural DELA, e o
+/// bloqueado não é avisado nem impedido de nada. Bloqueio que notifica vira
+/// briga; bloqueio que pune vira ferramenta de perseguição. O que se quer aqui
+/// é apenas deixar de ver.
+model Bloqueio {
+  bloqueadorId Int
+  bloqueadoId  Int
+  criadoEm     DateTime @default(now())
+
+  bloqueador Usuario @relation("BloqueiosFeitos", fields: [bloqueadorId], references: [id], onDelete: Cascade)
+  bloqueado  Usuario @relation("BloqueiosRecebidos", fields: [bloqueadoId], references: [id], onDelete: Cascade)
+
+  @@id([bloqueadorId, bloqueadoId])
+  /// O mural filtra por "quem EU bloqueei" a cada listagem.
+  @@index([bloqueadorId])
+  @@map("bloqueios")
 }
 
 model PedidoOracao {

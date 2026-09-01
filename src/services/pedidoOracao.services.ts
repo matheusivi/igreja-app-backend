@@ -10,18 +10,22 @@ import { PedidoOracaoRepository } from "../repository/pedidoOracao.repository";
 import { AppError } from "../utils/AppError";
 import { Prisma } from "@prisma/client";
 import { Perfis } from "../constants/perfis";
+import { ModeracaoService } from "./moderacao.services";
 
 export class PedidoOracaoService {
   private usuarioRepository: UsuarioRepository;
   private pedidoOracaoRepository: PedidoOracaoRepository;
+  private moderacaoService: ModeracaoService;
 
   constructor(
     usuarioRepository?: UsuarioRepository,
     pedidoOracaoRepository?: PedidoOracaoRepository,
+    moderacaoService?: ModeracaoService,
   ) {
     this.usuarioRepository = usuarioRepository ?? new UsuarioRepository();
     this.pedidoOracaoRepository =
       pedidoOracaoRepository ?? new PedidoOracaoRepository();
+    this.moderacaoService = moderacaoService ?? new ModeracaoService();
   }
 
   public async create(
@@ -58,8 +62,33 @@ export class PedidoOracaoService {
     //
     // A coluna é `autorUsuarioId`, não `usuarioId`: o `tsc` pegou o erro antes
     // de virar consulta silenciosamente sem filtro.
+    /**
+     * ═══ AS DUAS REGRAS SOBRE O AUTOR SÃO EXCLUDENTES ═══
+     * "Meus pedidos" e "esconder quem eu bloqueei" escrevem no MESMO campo
+     * (`autorUsuarioId`), então um `if` seguido do outro faria o segundo
+     * apagar o primeiro em silêncio — a aba "Meus" passaria a mostrar o mural
+     * inteiro.
+     *
+     * O `else` deixa isso explícito, e a combinação nem faz sentido: ninguém
+     * bloqueia a si mesmo, então na aba "Meus" não há o que esconder.
+     */
     if (somenteDoUsuarioId !== undefined) {
       whereClause.autorUsuarioId = somenteDoUsuarioId;
+    } else if (filters.filtrarBloqueadosDe !== undefined) {
+      /**
+       * ═══ O FILTRO VAI NA CONSULTA, NÃO DEPOIS ═══
+       * Trazer os pedidos e escondê-los na tela pareceria igual, mas o texto
+       * teria viajado até o aparelho — e "não mostrar" não é "não enviar".
+       *
+       * É também o que mantém a paginação honesta: filtrando depois, uma
+       * página de 15 chegaria com 11 e o total do rodapé mentiria.
+       */
+      const bloqueados = await this.moderacaoService.idsBloqueadosPor(
+        filters.filtrarBloqueadosDe,
+      );
+      if (bloqueados.length > 0) {
+        whereClause.autorUsuarioId = { notIn: bloqueados };
+      }
     }
 
     const [pedidos, total] = await Promise.all([

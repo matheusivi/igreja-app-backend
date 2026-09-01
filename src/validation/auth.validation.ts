@@ -158,6 +158,22 @@ export const AtualizarPerfilSchema = z.object({
   }),
 });
 
+/**
+ * Exclusão da própria conta.
+ *
+ * A senha é o único campo, e é obrigatória. Ver o porquê em
+ * `AuthService.excluirConta` — resumindo: é a ação sem volta do app, e um
+ * toque acidental num celular desbloqueado não pode bastar.
+ *
+ * Sem `min(8)` aqui de propósito: não é cadastro de senha nova, é conferência
+ * da que já existe. Se a conta foi criada quando a regra era outra, exigir 8
+ * agora impediria a pessoa de excluir a própria conta — que é exatamente o
+ * direito que esta rota existe para garantir.
+ */
+export const ExcluirContaSchema = z.object({
+  senha: z.string().min(1, "Informe sua senha para confirmar"),
+});
+
 export const ForgotPasswordSchema = z.object({
   email: z.email("E-mail inválido"),
 });

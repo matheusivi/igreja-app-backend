@@ -42,6 +42,10 @@ export class PedidoOracaoController {
       // O id sai do TOKEN, não da query. O cliente diz apenas SE quer filtrar;
       // quem ele é, quem decide é o servidor.
       ...(apenasMeus ? { somenteDoUsuarioId: req.user.id } : {}),
+      // Mesma regra: o servidor decide de quem é a lista de bloqueios, a
+      // partir do token. Na aba "Meus" o serviço ignora este campo — ninguém
+      // bloqueia a si mesmo.
+      filtrarBloqueadosDe: req.user.id,
       limit,
       page,
     });

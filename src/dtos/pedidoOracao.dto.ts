@@ -15,6 +15,16 @@ export interface ListPedidosOracaoDTO {
    * antigos, já que a primeira página traz os mais recentes de todo mundo.
    */
   somenteDoUsuarioId?: number | undefined;
+
+  /**
+   * Esconde do mural os pedidos de quem ESTE usuário bloqueou.
+   *
+   * Igual ao campo acima: vem do token, no controller, nunca do cliente. Se
+   * viesse do pedido, bastaria mandar o id de outra pessoa para enxergar o
+   * mural pelos olhos dela — descobrindo quem ela bloqueou, que é justamente
+   * a informação que o bloqueio existe para manter privada.
+   */
+  filtrarBloqueadosDe?: number | undefined;
 }
 
 export interface PedidoOracaoResponse {

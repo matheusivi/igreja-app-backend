@@ -30,6 +30,7 @@ import { eventoRoutes } from "./src/routes/evento.routes";
 import { uploadRoutes } from "./src/routes/upload.routes";
 import { configuracaoRoutes } from "./src/routes/configuracao.routes";
 import { leituraPlanoRoutes } from "./src/routes/leituraPlano.routes";
+import { moderacaoRoutes } from "./src/routes/moderacao.routes";
 
 // ======================
 // Aplicação
@@ -100,6 +101,7 @@ app.use("/api/configuracao", configuracaoRoutes);
 app.use("/api/familias", grupoFamiliarRoutes);
 app.use("/api/eventos", eventoRoutes);
 app.use("/api/plano-leitura", leituraPlanoRoutes);
+app.use("/api/moderacao", moderacaoRoutes);
 app.use("/api/upload", uploadRoutes);
 
 // ======================

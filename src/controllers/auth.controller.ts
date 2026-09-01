@@ -7,6 +7,7 @@ import {
   LoginSchema,
   UpdateMeSchema,
   AtualizarPerfilSchema,
+  ExcluirContaSchema,
 } from "../validation/auth.validation";
 import { AppError } from "../utils/AppError";
 import {
@@ -40,6 +41,23 @@ export class AuthController {
       success: true,
       message: "Login realizado com sucesso",
       data: result,
+    });
+  };
+
+  /**
+   * Exclusão da própria conta. Sempre a própria: o id vem do token, nunca do
+   * pedido. Não existe forma de apagar a conta de outra pessoa por esta rota,
+   * nem para a liderança.
+   */
+  public deleteMe = async (req: AuthRequest, res: Response): Promise<void> => {
+    if (!req.user) throw new AppError("Usuário não autenticado", 401);
+
+    const { senha } = ExcluirContaSchema.parse(req.body);
+    await this.authService.excluirConta(req.user.id, senha);
+
+    res.status(200).json({
+      success: true,
+      message: "Sua conta foi excluída.",
     });
   };
 

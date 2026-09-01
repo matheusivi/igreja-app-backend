@@ -40,6 +40,76 @@ export class UsuarioRepository {
   }
 
   /**
+   * ╔═══════════════════════════════════════════════════════════════════╗
+   * ║  EXCLUSÃO DE CONTA — irreversível                                 ║
+   * ╚═══════════════════════════════════════════════════════════════════╝
+   *
+   * Apaga tudo que é da PESSOA e anonimiza o que resta.
+   *
+   * ═══ POR QUE NÃO UM `delete` E PRONTO ═══
+   * Avisos, cursos, eventos e grupos familiares guardam quem os criou. O banco
+   * recusa apagar alguém que tenha qualquer um deles — e mesmo que aceitasse,
+   * apagar levaria junto conteúdo da igreja. O aviso de um líder que saiu
+   * continua sendo um aviso da igreja.
+   *
+   * Então o registro sobra como casca vazia, sem uma única informação pessoal,
+   * apenas para as chaves estrangeiras continuarem válidas.
+   *
+   * ═══ TUDO NUMA TRANSAÇÃO ═══
+   * Se qualquer passo falhar, nada acontece. O estado intermediário — dados
+   * pessoais meio apagados, conta ainda funcionando — seria o pior desfecho
+   * possível: a pessoa acharia que excluiu, e não excluiu.
+   *
+   * ═══ O QUE DELIBERADAMENTE FICA ═══
+   * Convites de família que ELA enviou a outras pessoas. São registros sobre a
+   * vida de terceiros, e apagá-los desfaria vínculos que não são dela.
+   */
+  async excluirConta(id: number, senhaInutilizavel: string): Promise<void> {
+    const marcador = `removido-${id}@conta-removida.invalid`;
+
+    await this.prisma.$transaction([
+      // ── Registros pessoais: somem por completo ──────────────────────
+      this.prisma.pedidoOracao.deleteMany({ where: { autorUsuarioId: id } }),
+      this.prisma.leituraPlano.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.membroFamilia.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.usuarioSala.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.usuarioCurso.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.passwordResetToken.deleteMany({ where: { usuarioId: id } }),
+      this.prisma.bloqueio.deleteMany({ where: { bloqueadorId: id } }),
+      this.prisma.bloqueio.deleteMany({ where: { bloqueadoId: id } }),
+
+      // ── A casca ─────────────────────────────────────────────────────
+      this.prisma.usuario.update({
+        where: { id },
+        data: {
+          // O e-mail precisa continuar único, e `.invalid` é um domínio
+          // reservado que não existe e nunca vai existir — não há risco de
+          // alguém registrá-lo e receber correspondência de volta.
+          email: marcador,
+          nomeCompleto: "Conta removida",
+          // Hash aleatório: nenhuma senha do mundo confere com ele. Deixar o
+          // hash antigo permitiria entrar com a senha de sempre.
+          senha: senhaInutilizavel,
+          sexo: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          fotoUrl: null,
+          profissao: null,
+          telefone: null,
+          especializacao: null,
+          divulgarTrabalho: false,
+          exibirAniversario: false,
+          perfil: "Membro",
+          contaRemovidaEm: new Date(),
+          // Invalida qualquer token ainda em circulação, pela mesma
+          // comparação que a troca de senha usa.
+          senhaAlteradaEm: new Date(),
+        },
+      }),
+    ]);
+  }
+
+  /**
    * Busca usuário por ID SEM retornar a senha (versão segura)
    * Usado em /me, middlewares e qualquer lugar que retorne dados do usuário
    */

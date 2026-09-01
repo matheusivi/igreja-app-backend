@@ -16,6 +16,15 @@ router.get("/me", authMiddleware.authenticate, authController.getCurrentUser);
 router.patch("/me", authMiddleware.authenticate, authController.updateMe);
 
 /**
+ * Exclusão da própria conta.
+ *
+ * Sem `requireRole`: é um direito de qualquer pessoa sobre os próprios dados,
+ * e as duas lojas exigem que exista. Nem a liderança pode apagar a conta de
+ * outra pessoa por aqui — o id vem do token.
+ */
+router.delete("/me", authMiddleware.authenticate, authController.deleteMe);
+
+/**
  * Promover a Líder e rebaixar a Membro.
  *
  * ═══ POR QUE "LÍDER" SAIU DAQUI ═══

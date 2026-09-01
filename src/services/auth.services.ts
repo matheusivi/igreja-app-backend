@@ -1,6 +1,7 @@
 // src/services/auth.service.ts
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "node:crypto";
 import type {
   RegisterDTO,
   LoginDTO,
@@ -143,6 +144,21 @@ export class AuthService {
 
     const senhaValida = await bcrypt.compare(senha, usuario.senha);
     if (!senhaValida) {
+      throw new AppError("E-mail ou senha inválidos.", 401);
+    }
+
+    /**
+     * ═══ CONTA REMOVIDA NÃO ENTRA ═══
+     * Na prática a senha guardada é um hash aleatório e nenhuma senha confere
+     * — esta checagem nunca deveria ser alcançada. Ela existe porque "nunca
+     * deveria" não é garantia: basta um dia alguém escrever um script de
+     * migração que mexa na coluna, e a porta se abre sem ninguém notar.
+     *
+     * A mensagem é a mesma de credencial errada, de propósito. Dizer "esta
+     * conta foi excluída" confirmaria a quem estivesse testando e-mails que
+     * aquela pessoa já foi da igreja.
+     */
+    if (usuario.contaRemovidaEm) {
       throw new AppError("E-mail ou senha inválidos.", 401);
     }
 
@@ -338,6 +354,60 @@ export class AuthService {
     if (usuario.perfil === novoPerfil) return;
 
     await this.usuarioRepository.atualizarPerfil(usuarioId, novoPerfil);
+  }
+
+  /**
+   * ╔═══════════════════════════════════════════════════════════════════╗
+   * ║  A PESSOA APAGA A PRÓPRIA CONTA                                   ║
+   * ╚═══════════════════════════════════════════════════════════════════╝
+   *
+   * Exigência das duas lojas para publicar: quem cria conta tem que conseguir
+   * apagá-la de dentro do app. Desativar não conta.
+   *
+   * ═══ POR QUE PEDE A SENHA ═══
+   * É a ação mais destrutiva que existe aqui e não tem desfazer. Só o toque
+   * num botão não basta: celular desbloqueado na mão de outra pessoa, criança
+   * mexendo, toque errado. A senha prova que é a dona da conta agindo agora,
+   * e não alguém que pegou o aparelho aberto.
+   *
+   * ═══ A FOTO SAI ANTES ═══
+   * O Cloudinary é outro serviço; se a exclusão do banco acontecesse primeiro
+   * e o processo caísse em seguida, o retrato ficaria hospedado para sempre,
+   * sem ninguém saber de quem é. Apagando antes, o pior caso é uma foto órfã
+   * de uma conta que continua existindo — recuperável.
+   */
+  public async excluirConta(usuarioId: number, senha: string): Promise<void> {
+    const usuario = await this.usuarioRepository.buscarPorId(usuarioId);
+    if (!usuario) throw new AppError("Usuário não encontrado.", 404);
+
+    // `buscarPorId` não devolve a senha, de propósito. Para conferir é preciso
+    // a linha completa — e é o único lugar do sistema que precisa disso.
+    const comSenha = await this.usuarioRepository.buscarPorEmail(usuario.email);
+    if (!comSenha) throw new AppError("Usuário não encontrado.", 404);
+
+    const senhaConfere = await bcrypt.compare(senha, comSenha.senha);
+    if (!senhaConfere) {
+      throw new AppError("Senha incorreta.", 401);
+    }
+
+    if (usuario.fotoUrl) {
+      const publicId = extrairPublicId(usuario.fotoUrl);
+      if (publicId) await removerImagem(publicId);
+    }
+
+    /**
+     * Hash de um valor aleatório que ninguém conhece — nem eu, nem o banco de
+     * dados depois de gravado. Guardar o hash antigo permitiria entrar com a
+     * senha de sempre; guardar texto qualquer faria o `bcrypt.compare` se
+     * comportar de forma imprevisível. Um hash válido de segredo perdido é a
+     * única forma limpa de trancar a porta.
+     */
+    const senhaInutilizavel = await bcrypt.hash(
+      crypto.randomBytes(32).toString("hex"),
+      this.SALT_ROUNDS,
+    );
+
+    await this.usuarioRepository.excluirConta(usuarioId, senhaInutilizavel);
   }
 
   public async logout(token: string): Promise<void> {
