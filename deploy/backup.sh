@@ -29,11 +29,31 @@ ARQUIVO="$DESTINO/ibvi-$(date +%Y%m%d-%H%M).sql.gz"
 
 mkdir -p "$DESTINO"
 
-# ═══ AS VARIÁVEIS VÊM DO .env ═══
-# Repetir usuário e nome do banco aqui criaria um segundo lugar para eles
-# divergirem — e o backup falharia calado no dia em que alguém trocasse um.
-# shellcheck disable=SC1091
-set -a; source .env; set +a
+# ═══ LER O .env SEM DEIXAR O BASH INTERPRETÁ-LO ═══
+# A tentação era `source .env`. Não funciona, e a falha é feia: `.env` NÃO é
+# sintaxe de bash. Basta um valor com caractere especial para o shell tentar
+# executá-lo.
+#
+# Foi exatamente o que aconteceu com esta linha:
+#
+#     EMAIL_REMETENTE=IBVI <nao-responda@ibvi.novafeira.com.br>
+#
+# Os sinais `<` e `>` são redirecionamento de entrada e saída. O `source`
+# engasgou com "syntax error near unexpected token", e o backup nunca rodou.
+# O Docker lê o mesmo arquivo sem reclamar porque tem leitor próprio.
+#
+# Aqui só precisamos de dois valores, ambos simples. Extraí-los com `grep`
+# lê o que interessa e nunca interpreta o resto — nem hoje, nem no dia em que
+# alguém acrescentar uma variável com aspas, cifrão ou parêntese.
+extrair() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+
+POSTGRES_USER=$(extrair POSTGRES_USER)
+POSTGRES_DB=$(extrair POSTGRES_DB)
+
+if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_DB" ]; then
+  echo "  ERRO: POSTGRES_USER ou POSTGRES_DB não encontrados no .env"
+  exit 1
+fi
 
 echo "[$(date '+%d/%m %H:%M')] iniciando backup"
 

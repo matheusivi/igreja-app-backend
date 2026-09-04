@@ -34,8 +34,17 @@ fi
 [ -f "$ARQUIVO" ] || { echo "Arquivo não encontrado: $ARQUIVO"; exit 1; }
 gzip -t "$ARQUIVO" || { echo "Arquivo corrompido: $ARQUIVO"; exit 1; }
 
-# shellcheck disable=SC1091
-set -a; source .env; set +a
+# Mesmo cuidado do backup.sh: `.env` não é sintaxe de bash, e `source` quebra
+# em valores com `<`, `>`, aspas ou parênteses. Lemos só o que interessa.
+extrair() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
+
+POSTGRES_USER=$(extrair POSTGRES_USER)
+POSTGRES_DB=$(extrair POSTGRES_DB)
+
+if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_DB" ]; then
+  echo "  ERRO: POSTGRES_USER ou POSTGRES_DB não encontrados no .env"
+  exit 1
+fi
 
 echo
 echo "  Banco:    $POSTGRES_DB"
