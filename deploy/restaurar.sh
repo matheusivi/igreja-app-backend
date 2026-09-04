@@ -60,7 +60,11 @@ read -rp "  Digite RESTAURAR para confirmar: " CONFIRMA
 # errado — data trocada, arquivo velho —, ainda dá para voltar.
 SEGURANCA="backups/antes-de-restaurar-$(date +%Y%m%d-%H%M).sql.gz"
 echo "  Guardando o estado atual em $SEGURANCA…"
-docker compose exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$SEGURANCA"
+# Mesmas opções do backup.sh — esta cópia precisa ser restaurável nas mesmas
+# condições, senão a rede de segurança tem buraco.
+docker compose exec -T db \
+  pg_dump --clean --if-exists --no-owner \
+    -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$SEGURANCA"
 
 # ═══ A API PARA DURANTE A RESTAURAÇÃO ═══
 # Com ela no ar, uma requisição pode gravar no meio da restauração e deixar o
@@ -69,7 +73,11 @@ echo "  Parando a API…"
 docker compose stop api
 
 echo "  Restaurando…"
-gunzip -c "$ARQUIVO" | docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+# `ON_ERROR_STOP=1` porque o padrão do psql é seguir em frente depois de um
+# erro. Sem isso, um restore que falha na metade termina dizendo "pronto", e o
+# banco fica num estado que ninguém consegue descrever.
+gunzip -c "$ARQUIVO" | docker compose exec -T db \
+  psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
 echo "  Subindo a API…"
 docker compose start api

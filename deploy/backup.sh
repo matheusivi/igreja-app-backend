@@ -14,9 +14,13 @@ set -euo pipefail
 # recupera do git; isso não se recupera de lugar nenhum.
 #
 # ═══ COMO INSTALAR ═══
-#   chmod +x /opt/ibvi/deploy/backup.sh
-#   /opt/ibvi/deploy/backup.sh                    # testa uma vez, agora
-#   (crontab -l 2>/dev/null; echo "0 3 * * * /opt/ibvi/deploy/backup.sh >> /opt/ibvi/backups/log.txt 2>&1") | crontab -
+#   bash /opt/ibvi/deploy/backup.sh               # testa uma vez, agora
+#   (crontab -l 2>/dev/null | grep -v backup.sh; echo "0 3 * * * /bin/bash /opt/ibvi/deploy/backup.sh >> /opt/ibvi/backups/log.txt 2>&1") | crontab -
+#
+# Chamar com `bash` na frente, e não `chmod +x` no arquivo: o Git guarda a
+# permissão como parte do conteúdo, então o `chmod` feito na VPS vira alteração
+# local e trava o `git pull` seguinte com "your local changes would be
+# overwritten". Aconteceu. Assim não acontece de novo.
 #
 # Às 3h porque é quando ninguém está usando: o `pg_dump` segura uma transação
 # longa, e de madrugada ela não disputa com ninguém.
@@ -60,8 +64,23 @@ echo "[$(date '+%d/%m %H:%M')] iniciando backup"
 # `-T` desliga o pseudo-terminal: sem isso o docker acrescenta caracteres de
 # controle no meio da saída, e o arquivo .sql sai corrompido de um jeito que
 # só aparece na hora de restaurar.
+#
+# ═══ POR QUE --clean --if-exists ═══
+# Sem `--clean`, o dump só tem `CREATE TABLE`. Restaurar num banco que já tem
+# as tabelas — que é o caso real: o desastre quase nunca é "o banco sumiu", é
+# "os dados ficaram errados" — daria "relation already exists" em cada tabela,
+# e o restore pararia no meio.
+#
+# `--clean` acrescenta um `DROP` antes de cada `CREATE`. `--if-exists` faz
+# esses DROPs não reclamarem quando o objeto não existe, que é o outro caso:
+# restaurar em banco vazio, num servidor novo.
+#
+# `--no-owner` tira os `ALTER TABLE ... OWNER TO`. O dono é recriado como o
+# usuário que restaura. Sem isso, restaurar num servidor onde o usuário do
+# Postgres tenha outro nome falha em toda linha.
 docker compose exec -T db \
-  pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$ARQUIVO"
+  pg_dump --clean --if-exists --no-owner \
+    -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$ARQUIVO"
 
 # ═══ CONFERIR QUE O ARQUIVO PRESTA ═══
 # Um `pg_dump` que falha no meio ainda deixa um .gz — pequeno e inútil. Sem
