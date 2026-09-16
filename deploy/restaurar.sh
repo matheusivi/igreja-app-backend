@@ -13,13 +13,16 @@ set -euo pipefail
 # Rode uma vez, agora, com o banco funcionando. Se der certo hoje, dá certo no
 # dia ruim.
 #
-#   /opt/ibvi/deploy/restaurar.sh backups/ibvi-20260901-0300.sql.gz
+#   /opt/ibvi-backend/deploy/restaurar.sh backups/ibvi-20260901-0300.sql.gz
 #
 # ⚠️  ISTO SOBRESCREVE O BANCO ATUAL. Tudo criado depois daquele backup se
 # perde. Por isso o script tira uma cópia de segurança ANTES de restaurar, e
 # exige que você digite RESTAURAR por extenso.
 
-cd /opt/ibvi
+# A raiz do projeto é onde este arquivo está, um nível acima de `deploy/`.
+# Assim o script funciona em qualquer servidor, sem caminho chutado.
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$RAIZ"
 
 ARQUIVO="${1:-}"
 

@@ -73,8 +73,8 @@ Só 22, 80 e 443 abertos. O Postgres e a API não aparecem aqui porque escutam a
 ## Passo 2 — Levar o código
 
 ```bash
-sudo mkdir -p /opt/ibvi && sudo chown $USER:$USER /opt/ibvi
-cd /opt/ibvi
+sudo mkdir -p /opt/ibvi-backend && sudo chown $USER:$USER /opt/ibvi-backend
+cd /opt/ibvi-backend
 git clone <URL-DO-SEU-REPOSITORIO> .
 ```
 
@@ -82,7 +82,7 @@ Sem repositório ainda? Do **seu computador**:
 
 ```bash
 rsync -av --exclude node_modules --exclude .env --exclude dist \
-  ./igreja-app-backend/ usuario@IP:/opt/ibvi/
+  ./igreja-app-backend/ usuario@IP:/opt/ibvi-backend-backend/
 ```
 
 ---
@@ -90,7 +90,7 @@ rsync -av --exclude node_modules --exclude .env --exclude dist \
 ## Passo 3 — As variáveis
 
 ```bash
-cd /opt/ibvi
+cd /opt/ibvi-backend
 cp .env.producao.example .env
 ```
 
@@ -146,7 +146,7 @@ Tem que responder `{"status":"healthy",...,"database":"connected"}`. Se disser `
 ```bash
 sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
 
-sudo cp /opt/ibvi/deploy/nginx-api.conf /etc/nginx/sites-available/ibvi-api
+sudo cp /opt/ibvi-backend/deploy/nginx-api.conf /etc/nginx/sites-available/ibvi-api
 sudo nano /etc/nginx/sites-available/ibvi-api   # trocar SUBDOMINIO.SEUDOMINIO.COM.BR (3 lugares)
 ```
 
@@ -216,21 +216,21 @@ docker compose exec api node -e "require('./dist/prisma/seed-cursos.js')"
 O banco vive num volume do Docker. `docker compose down -v` apaga tudo, sem perguntar.
 
 ```bash
-mkdir -p /opt/ibvi/backups
-cat > /opt/ibvi/backup.sh <<'EOF'
+mkdir -p /opt/ibvi-backend/backups
+cat > /opt/ibvi-backend/backup.sh <<'EOF'
 #!/bin/bash
 set -e
-cd /opt/ibvi
+cd /opt/ibvi-backend
 ARQ="backups/ibvi-$(date +%Y%m%d-%H%M).sql.gz"
 docker compose exec -T db pg_dump -U ibvi ibvi | gzip > "$ARQ"
 # 14 dias de histórico: o suficiente para perceber um problema e voltar
 find backups -name '*.sql.gz' -mtime +14 -delete
 echo "ok: $ARQ"
 EOF
-chmod +x /opt/ibvi/backup.sh
+chmod +x /opt/ibvi-backend/backup.sh
 
 # todo dia às 3h
-(crontab -l 2>/dev/null; echo "0 3 * * * /opt/ibvi/backup.sh >> /opt/ibvi/backups/log.txt 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/ibvi-backend/backup.sh >> /opt/ibvi-backend/backups/log.txt 2>&1") | crontab -
 ```
 
 **Teste a restauração pelo menos uma vez.** Backup que nunca foi restaurado não é backup, é esperança:
@@ -246,7 +246,7 @@ E leve uma cópia para fora da VPS de vez em quando. Backup na mesma máquina n�
 ## Atualizar depois
 
 ```bash
-cd /opt/ibvi
+cd /opt/ibvi-backend
 git pull
 docker compose up -d --build
 ```

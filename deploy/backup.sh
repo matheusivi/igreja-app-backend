@@ -14,8 +14,8 @@ set -euo pipefail
 # recupera do git; isso não se recupera de lugar nenhum.
 #
 # ═══ COMO INSTALAR ═══
-#   bash /opt/ibvi/deploy/backup.sh               # testa uma vez, agora
-#   (crontab -l 2>/dev/null | grep -v backup.sh; echo "0 3 * * * /bin/bash /opt/ibvi/deploy/backup.sh >> /opt/ibvi/backups/log.txt 2>&1") | crontab -
+#   bash /opt/ibvi-backend/deploy/backup.sh               # testa uma vez, agora
+#   (crontab -l 2>/dev/null | grep -v backup.sh; echo "0 3 * * * /bin/bash /opt/ibvi-backend/deploy/backup.sh >> /opt/ibvi-backend/backups/log.txt 2>&1") | crontab -
 #
 # Chamar com `bash` na frente, e não `chmod +x` no arquivo: o Git guarda a
 # permissão como parte do conteúdo, então o `chmod` feito na VPS vira alteração
@@ -25,9 +25,17 @@ set -euo pipefail
 # Às 3h porque é quando ninguém está usando: o `pg_dump` segura uma transação
 # longa, e de madrugada ela não disputa com ninguém.
 
-cd /opt/ibvi
+# ═══ DESCOBRIR A PRÓPRIA PASTA, EM VEZ DE CHUTAR ═══
+# Havia `cd /opt/ibvi` fixo aqui. Ao trocar de servidor, o projeto passou a
+# morar em `/opt/ibvi-backend` e o script apontaria para uma pasta inexistente —
+# falhando todo dia às 3h, num log que ninguém lê.
+#
+# `BASH_SOURCE[0]` é o caminho deste arquivo. Subindo um nível a partir de
+# `deploy/`, chega-se à raiz do projeto, seja ela qual for.
+RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$RAIZ"
 
-DESTINO="/opt/ibvi/backups"
+DESTINO="$RAIZ/backups"
 DIAS_MANTIDOS=14
 ARQUIVO="$DESTINO/ibvi-$(date +%Y%m%d-%H%M).sql.gz"
 
@@ -40,7 +48,7 @@ mkdir -p "$DESTINO"
 #
 # Foi exatamente o que aconteceu com esta linha:
 #
-#     EMAIL_REMETENTE=IBVI <nao-responda@ibvi.novafeira.com.br>
+#     EMAIL_REMETENTE=IBVI <nao-responda@api.ibvichurch.com.br>
 #
 # Os sinais `<` e `>` são redirecionamento de entrada e saída. O `source`
 # engasgou com "syntax error near unexpected token", e o backup nunca rodou.
