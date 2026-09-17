@@ -233,12 +233,30 @@ export class AuthService {
     return Math.floor(senhaAlteradaEm.getTime() / 1000) > emitidoEm;
   }
 
+  /**
+   * ═══ POR QUE UM ANO, E NÃO 24 HORAS ═══
+   * Com 24h, a congregação era deslogada todo dia. Numa igreja isso não
+   * protege ninguém: quem não lembra a senha desiste do app, e quem lembra
+   * digita tanto que acaba escolhendo uma senha fraca para dar menos trabalho.
+   * A sessão curta é boa em banco; aqui ela só afastava as pessoas.
+   *
+   * Duas coisas tornam a sessão longa defensável:
+   *
+   *   1. O token vive no SecureStore do aparelho, protegido pelo cofre do
+   *      Android — não é um arquivo que outro app leia.
+   *   2. Existe botão de desligar: trocar a senha invalida TODOS os tokens
+   *      emitidos antes, via `senhaAlteradaEm`. Perdeu o celular? Troque a
+   *      senha de outro aparelho e o antigo cai na hora seguinte.
+   *
+   * ═══ POR QUE NÃO "SEM VALIDADE" ═══
+   * Um token eterno nunca deixa de valer por conta própria. Se um vazar e a
+   * pessoa nunca trocar a senha, ele serve para sempre. Um ano é longo o
+   * bastante para ninguém notar e curto o bastante para o estrago ter fim.
+   */
   private generateToken(userId: number, perfil: string, sexo: string): string {
-    return jwt.sign(
-      { id: userId, perfil, sexo },
-      this.JWT_SECRET,
-      { expiresIn: "24h" }, // Reduzido de 7d para 24h (melhor prática)
-    );
+    return jwt.sign({ id: userId, perfil, sexo }, this.JWT_SECRET, {
+      expiresIn: "365d",
+    });
   }
 
   public verifyToken(token: string): TokenPayload {

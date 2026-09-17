@@ -207,7 +207,7 @@ describe("AuthService", () => {
       expect(jwt.sign).toHaveBeenCalledWith(
         { id: 42, perfil: "Usuario", sexo: "Feminino" },
         expect.any(String),
-        { expiresIn: "24h" },
+        { expiresIn: "365d" },
       );
 
       expect(resultado.token).toBe(mockToken);
@@ -311,7 +311,7 @@ describe("AuthService", () => {
           sexo: "Feminino",
         }),
         expect.any(String),
-        { expiresIn: "24h" },
+        { expiresIn: "365d" },
       );
     });
   });
