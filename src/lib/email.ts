@@ -67,27 +67,34 @@ export async function enviarEmailRecuperacaoSenha(
 
         <p style="margin-bottom: 8px;"><strong>Seu código:</strong></p>
 
-        <!-- Monoespaçada e com quebra por caractere: o código tem 64
-             caracteres, e numa fonte proporcional ele vira um borrão em que a
-             pessoa não consegue conferir se copiou inteiro. -->
+        <!-- Oito dígitos, grandes e espaçados. O código encolheu de 64
+             caracteres para 8, e a apresentação mudou junto: antes o problema
+             era caber e conferir se copiou inteiro; agora é ler de relance e
+             digitar sem errar, muitas vezes olhando o e-mail num aparelho e
+             digitando no mesmo.
+
+             O espaçamento entre letras separa os dígitos para que 11 não se
+             confunda com 1, e o tamanho grande atende quem lê sem óculos —
+             numa igreja isso não é detalhe. -->
         <div style="
           font-family: 'Courier New', Courier, monospace;
-          font-size: 14px;
-          line-height: 1.6;
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: 6px;
+          text-align: center;
           background-color: #F1EBE2;
           border: 1px solid #E8DED1;
           border-radius: 8px;
-          padding: 16px;
-          word-break: break-all;
+          padding: 20px 16px;
           user-select: all;
         ">${token}</div>
 
         <p style="margin-top: 20px;">
           Abra o aplicativo, toque em <strong>“Esqueci minha senha”</strong> e
-          cole o código acima na tela de redefinição.
+          digite o código acima na tela de redefinição.
         </p>
 
-        <p>Este código vale por <strong>1 hora</strong> e só pode ser usado uma vez.</p>
+        <p>Este código vale por <strong>15 minutos</strong> e só pode ser usado uma vez.</p>
 
         <p style="color: #7A5C4A;">
           Se não foi você que pediu, ignore este e-mail — sua senha continua a mesma.

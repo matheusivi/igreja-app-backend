@@ -179,7 +179,16 @@ export const ForgotPasswordSchema = z.object({
 });
 
 export const ResetPasswordSchema = z.object({
-  token: z.string().min(1, "Token é obrigatório"),
+  email: z.email("E-mail inválido"),
+  /**
+   * Exatamente 8 dígitos. Recusar aqui o que nem tem formato de código evita
+   * consultar o banco à toa — e é a primeira barreira contra quem tenta
+   * força bruta com lixo.
+   */
+  token: z
+    .string()
+    .trim()
+    .regex(/^\d{8}$/, "O código tem 8 dígitos"),
   novaSenha: z
     .string()
     .min(8, "A senha deve ter pelo menos 8 caracteres")

@@ -452,25 +452,57 @@ export class AuthService {
     );
   }
 
-  public async resetPassword(token: string, novaSenha: string): Promise<void> {
+  /**
+   * ═══ POR QUE O E-MAIL VOLTOU A FAZER PARTE DESTA CHAMADA ═══
+   * Com 64 caracteres, o código identificava a pessoa sozinho. Com 8 dígitos
+   * não identifica mais — e, sem saber de quem é a tentativa, não há como
+   * contar erros por pessoa. Sem esse contador, 8 dígitos são adivinháveis.
+   *
+   * O e-mail não pesa para quem usa: a tela anterior já o tem e passa adiante.
+   *
+   * ═══ POR QUE TODAS AS FALHAS DIZEM A MESMA COISA ═══
+   * "E-mail não cadastrado", "código errado" e "código expirado" são
+   * respostas diferentes que ensinam coisas diferentes a quem ataca — a
+   * primeira revela quem é membro da igreja. Aqui as três dizem o mesmo.
+   */
+  public async resetPassword(
+    email: string,
+    codigo: string,
+    novaSenha: string,
+  ): Promise<void> {
+    const recusar = () =>
+      new AppError("Código inválido ou expirado. Solicite um novo.", 400);
+
+    const usuario = await this.usuarioRepository.buscarPorEmail(email);
+    if (!usuario) throw recusar();
+
     const registro =
-      await this.passwordResetTokenRepository.buscarValido(token);
-
-    if (!registro) {
-      throw new AppError("Token inválido ou não encontrado.", 400);
-    }
-
-    if (registro.usado) {
-      throw new AppError("Este token já foi utilizado.", 400);
-    }
+      await this.passwordResetTokenRepository.buscarAtivoDoUsuario(usuario.id);
+    if (!registro) throw recusar();
 
     if (new Date() > registro.expiraEm) {
-      throw new AppError("Token expirado. Solicite um novo link.", 400);
+      await this.passwordResetTokenRepository.invalidar(registro.id);
+      throw recusar();
+    }
+
+    /**
+     * Comparação em tempo constante. `===` para de comparar no primeiro
+     * caractere diferente, e o tempo dessa parada vaza o quanto do código já
+     * estava certo — dá para descobrir dígito a dígito, em vez de tentar os
+     * 100 milhões. `timingSafeEqual` sempre percorre tudo.
+     */
+    const digitado = Buffer.from(codigo.padEnd(8, " "));
+    const esperado = Buffer.from(registro.token.padEnd(8, " "));
+    const confere = crypto.timingSafeEqual(digitado, esperado);
+
+    if (!confere) {
+      await this.passwordResetTokenRepository.registrarErro(registro.id);
+      throw recusar();
     }
 
     const senhaHash = await bcrypt.hash(novaSenha, this.SALT_ROUNDS);
 
     await this.usuarioRepository.atualizarSenha(registro.usuarioId, senhaHash);
-    await this.passwordResetTokenRepository.invalidar(token);
+    await this.passwordResetTokenRepository.invalidar(registro.id);
   }
 }

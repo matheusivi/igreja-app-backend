@@ -141,9 +141,9 @@ export class AuthController {
   };
 
   public resetPassword = async (req: Request, res: Response): Promise<void> => {
-    const { token, novaSenha } = ResetPasswordSchema.parse(req.body);
+    const { email, token, novaSenha } = ResetPasswordSchema.parse(req.body);
 
-    await this.authService.resetPassword(token, novaSenha);
+    await this.authService.resetPassword(email, token, novaSenha);
 
     res.status(200).json({
       success: true,

@@ -341,16 +341,30 @@ model TokenRevogado {
   @@map("tokens_revogados")
 }
 
+/// Código de recuperação de senha.
+///
+/// ═══ POR QUE O CÓDIGO DEIXOU DE SER ÚNICO NO SISTEMA ═══
+/// Antes eram 64 caracteres aleatórios, e a chance de dois iguais era nula —
+/// dava para procurar só pelo código. Com 8 dígitos, dois membros podem
+/// receber o mesmo número no mesmo dia, e isso é normal.
+///
+/// A busca passou a ser por PESSOA + CÓDIGO. Isso não é só contornar a
+/// colisão: é o que permite contar erros por pessoa. Procurando só pelo
+/// código, um palpite errado não diz de quem era a tentativa, e não há
+/// contador para incrementar.
 model PasswordResetToken {
   id        Int      @id @default(autoincrement())
-  token     String   @unique
+  token     String
   usuarioId Int
   expiraEm  DateTime
   usado     Boolean  @default(false)
+  /// Palpites errados neste código. Ao chegar em 5, ele morre.
+  tentativas Int     @default(0)
   criadoEm  DateTime @default(now())
 
   usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
+  @@index([usuarioId, token])
   @@map("password_reset_tokens")
 }
 
