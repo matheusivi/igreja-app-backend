@@ -55,11 +55,35 @@ app.set("trust proxy", 1);
 // Segurança
 // ======================
 app.use(helmet());
+/**
+ * ═══ CORS: QUEM, DE NAVEGADOR, PODE CHAMAR ESTA API ═══
+ * CORS é uma regra que o NAVEGADOR aplica — o aplicativo não é navegador e
+ * passa por ela sem ser afetado, em qualquer configuração. Por isso este
+ * bloco nunca quebrou nada, e por isso o erro abaixo passou despercebido.
+ *
+ * O padrão anterior, quando `ALLOWED_ORIGINS` estava vazio, era:
+ *
+ *     ["http://localhost:3000", "http://192.168.1.32:3000"]
+ *
+ * Um IP de rede doméstica, de desenvolvimento, autorizado no servidor da
+ * igreja. Inofensivo na prática — ninguém está naquela rede —, mas é
+ * configuração de casa rodando em produção, e o tipo de coisa que numa
+ * auditoria é impossível de justificar.
+ *
+ * Agora o padrão depende do ambiente:
+ *   desenvolvimento → localhost, para quem for testar pelo navegador
+ *   produção        → nenhuma origem, porque nenhuma página web chama a API
+ *
+ * `origin: false` não envia os cabeçalhos de permissão. Navegador nenhum
+ * entra; o aplicativo continua igual.
+ */
 app.use(
   cors({
     origin: env.ALLOWED_ORIGINS
-      ? env.ALLOWED_ORIGINS.split(",")
-      : ["http://localhost:3000", "http://192.168.1.32:3000"],
+      ? env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+      : env.NODE_ENV === "production"
+        ? false
+        : ["http://localhost:3000", "http://localhost:8081"],
     credentials: true,
   }),
 );

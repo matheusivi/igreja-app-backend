@@ -8,6 +8,16 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
+  /**
+   * Origens de NAVEGADOR autorizadas a chamar esta API, separadas por vírgula.
+   *
+   * Hoje fica vazia, e é o correto: quem consome a API é o aplicativo, que não
+   * é navegador e ignora CORS. As páginas de privacidade, termos e exclusão de
+   * conta são HTML estático servido pelo nginx, sem JavaScript que chame nada.
+   *
+   * Preencha no dia em que existir um formulário na web conversando com esta
+   * API — e aí com os endereços de verdade, escritos na hora.
+   */
   ALLOWED_ORIGINS: z.string().optional(),
 
   /**
